@@ -30,16 +30,6 @@ struct YukiApp: App {
             Text(windowManager.selectedWorkspace?.displayName ?? "Unknown Workspace")
         }
         
-//        // New workspace dialog
-//        if isCreatingWorkspace {
-//            Window("New Workspace", id: "newWorkspaceWindow") {
-//                WorkspaceCreationView(
-//                    workspaceName: $newWorkspaceName,
-//                    isShowing: $isCreatingWorkspace,
-//                    windowManager: windowManager
-//                )
-//            }
-//        }
         
         // Settings window
         Window("Settings", id: "settingsWindow") {

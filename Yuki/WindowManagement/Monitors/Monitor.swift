@@ -141,6 +141,8 @@ class Monitor: Identifiable, ObservableObject {
         return true
     }
     
+    
+
     // MARK: - Basic Window Management
     
     /// Checks if a point is within this monitor's frame

@@ -17,36 +17,6 @@ extension Monitor {
         static var originalWindowData: [Int: WindowPositionData] = [:]
     }
     
-    // MARK: - Workspace Window Management
-    
-    /// Activates the specified workspace on this monitor
-    /// - Parameter workspace: The workspace to activate
-    /// - Returns: True if activation was successful
-    @discardableResult
-    func activateWorkspace(_ workspace: Workspace) -> Bool {
-        // Ensure the workspace belongs to this monitor
-        guard workspaces.contains(where: { $0.id == workspace.id }) else {
-            return false
-        }
-        
-        // Don't do anything if it's already active
-        if activeWorkspace?.id == workspace.id {
-            return true
-        }
-        
-        // Hide windows from current workspace if needed
-        if let current = activeWorkspace {
-            hideWorkspaceWindows(current)
-        }
-        
-        // Set as active workspace
-        activeWorkspace = workspace
-        
-        // Show windows for new workspace
-        showWorkspaceWindows(workspace)
-        
-        return true
-    }
     
     /// Hides all windows in a workspace by moving them off-screen
     func hideWorkspaceWindows(_ workspace: Workspace) {
@@ -235,5 +205,36 @@ extension Monitor {
         }
         
         return operationResult
+    }
+    
+    // MARK: - Workspace Window Management
+    
+    /// Activates the specified workspace on this monitor
+    /// - Parameter workspace: The workspace to activate
+    /// - Returns: True if activation was successful
+    @discardableResult
+    func activateWorkspace(_ workspace: Workspace) -> Bool {
+        // Ensure the workspace belongs to this monitor
+        guard workspaces.contains(where: { $0.id == workspace.id }) else {
+            return false
+        }
+        
+        // Don't do anything if it's already active
+        if activeWorkspace?.id == workspace.id {
+            return true
+        }
+        
+        // Hide windows from current workspace if needed
+        if let current = activeWorkspace {
+            hideWorkspaceWindows(current)
+        }
+        
+        // Set as active workspace
+        activeWorkspace = workspace
+        
+        // Show windows for new workspace
+        showWorkspaceWindows(workspace)
+        
+        return true
     }
 }

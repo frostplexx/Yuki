@@ -16,7 +16,7 @@ class TilingManager {
     static let shared = TilingManager()
     
     /// Current tiling mode
-    private var currentMode: TilingMode = TilingMode.default
+    var currentMode: TilingMode = TilingMode.default
     
     /// Spacing between windows
     private let spacing: CGFloat = 8.0
