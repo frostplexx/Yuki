@@ -122,14 +122,14 @@ extension Monitor {
     /// - Parameter windowNode: The window to hide
     private func hideWindowInBottomRightCorner(_ windowNode: WindowNode) {
         // Get the window's current size
-        guard let windowSize = windowNode.size else { return }
+//        guard let windowSize = windowNode.size else { return }
         
         // Calculate a position in the bottom right corner of the screen
         // Position the window so it's mostly off-screen, but with a small part visible
         // We'll keep 5 pixels visible on each edge to make sure it's accessible
         let hiddenPosition = NSPoint(
-            x: visibleFrame.maxX - 5,  // 5px from right edge
-            y: visibleFrame.minY + 5   // 5px from bottom edge
+            x: visibleFrame.maxX - 0.125,
+            y: visibleFrame.maxY - 0.125
         )
         
         // Move the window with animations disabled
