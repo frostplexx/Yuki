@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6519DD422D76FFFE00645F7A /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 6519DD412D76FFFE00645F7A /* Defaults */; };
+		6519DD442D76FFFE00645F7A /* DefaultsMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 6519DD432D76FFFE00645F7A /* DefaultsMacros */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6519DD1C2D76F85200645F7A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +34,22 @@
 		6519DD252D76F85200645F7A /* YukiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YukiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6519DD4E2D77051E00645F7A /* Exceptions for "Yuki" folder in "Yuki" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6519DD092D76F85000645F7A /* Yuki */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6519DD0C2D76F85000645F7A /* Yuki */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6519DD4E2D77051E00645F7A /* Exceptions for "Yuki" folder in "Yuki" target */,
+			);
 			path = Yuki;
 			sourceTree = "<group>";
 		};
@@ -52,6 +70,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6519DD422D76FFFE00645F7A /* Defaults in Frameworks */,
+				6519DD442D76FFFE00645F7A /* DefaultsMacros in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +132,8 @@
 			);
 			name = Yuki;
 			packageProductDependencies = (
+				6519DD412D76FFFE00645F7A /* Defaults */,
+				6519DD432D76FFFE00645F7A /* DefaultsMacros */,
 			);
 			productName = Yuki;
 			productReference = 6519DD0A2D76F85000645F7A /* Yuki.app */;
@@ -175,6 +197,7 @@
 				TargetAttributes = {
 					6519DD092D76F85000645F7A = {
 						CreatedOnToolsVersion = 16.2;
+						LastSwiftMigration = 1620;
 					};
 					6519DD1A2D76F85200645F7A = {
 						CreatedOnToolsVersion = 16.2;
@@ -195,6 +218,9 @@
 			);
 			mainGroup = 6519DD012D76F85000645F7A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6519DD402D76FFFE00645F7A /* XCRemoteSwiftPackageReference "Defaults" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6519DD0B2D76F85000645F7A /* Products */;
 			projectDirPath = "";
@@ -392,6 +418,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Yuki/Yuki.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -401,6 +428,9 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Yuki/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "This app needs to control other applications to monitor windows";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -410,6 +440,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.frostplexx.Yuki;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -419,6 +450,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Yuki/Yuki.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -428,6 +460,9 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Yuki/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "This app needs to control other applications to monitor windows";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -549,6 +584,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6519DD402D76FFFE00645F7A /* XCRemoteSwiftPackageReference "Defaults" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/Defaults.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6519DD412D76FFFE00645F7A /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6519DD402D76FFFE00645F7A /* XCRemoteSwiftPackageReference "Defaults" */;
+			productName = Defaults;
+		};
+		6519DD432D76FFFE00645F7A /* DefaultsMacros */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6519DD402D76FFFE00645F7A /* XCRemoteSwiftPackageReference "Defaults" */;
+			productName = DefaultsMacros;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6519DD022D76F85000645F7A /* Project object */;
 }
