@@ -13,7 +13,6 @@ struct YukiApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     // Application state
-    @StateObject private var windowManager = WindowManager()
     @State private var newWorkspaceName: String = ""
     @State private var isCreatingWorkspace: Bool = false
     @Environment(\.openWindow) private var openWindow
@@ -22,24 +21,26 @@ struct YukiApp: App {
         // Menu Bar Extra
         MenuBarExtra {
             MenuBarView(
-                windowManager: windowManager,
+                windowManager: WindowManager.shared,
                 isCreatingWorkspace: $isCreatingWorkspace,
                 openSettings: { openWindow(id: "settingsWindow") }
             )
         } label: {
-            Text(windowManager.selectedWorkspace?.displayName ?? "Unknown Workspace")
+            Text(
+                WindowManager.shared.selectedWorkspace?.displayName ?? "Unknown Workspace"
+            )
         }
         
         
         // Settings window
         Window("Settings", id: "settingsWindow") {
             SettingsView()
-                .environmentObject(windowManager)
+                .environmentObject(WindowManager.shared)
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
                     NSApp.activate(ignoringOtherApps: true)
                     // Refresh window tree when settings appear
-                    windowManager.refreshWindows()
+                    WindowManager.shared.refreshWindows()
                 }
                 .onDisappear {
                     NSApp.setActivationPolicy(.accessory)

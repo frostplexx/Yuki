@@ -104,7 +104,7 @@ class TilingEngine {
         
         // Then enable pinning if not in float mode
         if currentMode != .float {
-            WindowManagerProvider.shared.enableWindowPinning()
+            WindowManager.shared.enableWindowPinning()
         }
     }
     
@@ -235,7 +235,7 @@ class TilingEngine {
         
         // Update pinned position in window manager if pinning is enabled
         if let windowId = windowNode.systemWindowID {
-            let windowManager = WindowManagerProvider.shared
+            let windowManager = WindowManager.shared
             if windowManager.windowPinningEnabled {
                 windowManager.updatePinnedPosition(for: windowId, frame: frame)
             }

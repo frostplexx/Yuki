@@ -45,7 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Setup enhanced window manager initialization
     func setupEnhancedWindowManager() {
         // Get window manager
-        let windowManager = WindowManagerProvider.shared
+        let windowManager = WindowManager.shared
         
         // Request accessibility permissions first
         AccessibilityService.shared.requestPermission()
@@ -77,7 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     /// Refresh windows if needed
     private func refreshWindows() {
-        let windowManager = WindowManagerProvider.shared
+        let windowManager = WindowManager.shared
         
         // Check if window manager should refresh (only if app is active)
         if NSApp.isActive {
@@ -98,7 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         refreshTimer = nil
         
         // Clean up window manager resources
-        let windowManager = WindowManagerProvider.shared
+        let windowManager = WindowManager.shared
         windowManager.windowObserver?.stopObserving()
     }
 }

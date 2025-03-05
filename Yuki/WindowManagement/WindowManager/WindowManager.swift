@@ -16,6 +16,8 @@ import ObjectiveC
 class WindowManager: ObservableObject, WindowObserverDelegate {
     // MARK: - Published Properties
     
+    static let shared: WindowManager =  WindowManager()
+
     /// List of detected monitors
     @Published var monitors: [Monitor] = []
     
@@ -59,7 +61,7 @@ class WindowManager: ObservableObject, WindowObserverDelegate {
     
     // MARK: - Initialization
     
-    init() {
+    private init() {
         // Initialize the system
         initialize()
     }
@@ -756,10 +758,4 @@ enum WindowManagerError: Error {
 // MARK: - Singleton Provider
 
 /// Utility class to provide a singleton instance of the window manager
-class WindowManagerProvider {
     /// Shared window manager instance
-    static let shared: WindowManager = {
-        let manager = WindowManager()
-        return manager
-    }()
-}
