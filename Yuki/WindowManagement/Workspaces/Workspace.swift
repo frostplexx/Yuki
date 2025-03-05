@@ -45,6 +45,67 @@ class Workspace: Identifiable, Hashable, ObservableObject {
         initializeDefaultStructure()
     }
     
+    
+    /// Clean up the workspace structure
+  func cleanupStructure() {
+      // Handle any duplicate containers
+      let hstackContainers = root.children.compactMap {
+          $0 as? ContainerNode
+      }.filter {
+          $0.type == .hStack
+      }
+      
+      // If we have more than one HStack container, merge them
+      if hstackContainers.count > 1 {
+          // Keep the first container
+          let primaryContainer = hstackContainers[0]
+          
+          // Move all windows from other containers to the first one
+          for container in hstackContainers.dropFirst() {
+              for child in container.children {
+                  if let windowNode = child as? WindowNode {
+                      // Remove from current container
+                      var mutableContainer = container
+                      mutableContainer.remove(windowNode)
+                      
+                      // Add to primary container
+                      var mutablePrimaryContainer = primaryContainer
+                      mutablePrimaryContainer.append(windowNode)
+                  }
+              }
+              
+              // Remove the empty container
+              var mutableRoot = root
+              mutableRoot.remove(container)
+          }
+      }
+      
+      // Move any direct window children to an HStack container
+      let directWindowNodes = root.children.compactMap { $0 as? WindowNode }
+      
+      if !directWindowNodes.isEmpty {
+          let container: ContainerNode
+          
+          // Use existing HStack container or create a new one
+          if let existingContainer = hstackContainers.first {
+              container = existingContainer
+          } else {
+              container = ContainerNode(type: .hStack, title: "Default Layout")
+              var mutableRoot = root
+              mutableRoot.append(container)
+          }
+          
+          // Move direct windows to the container
+          for windowNode in directWindowNodes {
+              var mutableRoot = root
+              mutableRoot.remove(windowNode)
+              
+              var mutableContainer = container
+              mutableContainer.append(windowNode)
+          }
+      }
+  }
+
     // MARK: - Default Container
     
     /// Returns the default HStack container for this workspace
@@ -62,7 +123,6 @@ class Workspace: Identifiable, Hashable, ObservableObject {
             }
         }
         
-        // Create a new HStack container if one doesn't exist
         let container = ContainerNode(type: .hStack, title: "Default Layout")
         var mutableRoot = root
         mutableRoot.append(container)
@@ -117,59 +177,7 @@ class Workspace: Identifiable, Hashable, ObservableObject {
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-}
-
-// MARK: - WorkspaceRootNode Extension
-
-extension WorkspaceRootNode {
-    /// Finds a window node by system window ID
-    /// - Parameter systemWindowID: The system window ID to find
-    /// - Returns: The window node if found, nil otherwise
-    func findWindowNode(systemWindowID: Int) -> WindowNode? {
-        // Check direct children
-        for child in children {
-            if let windowNode = child as? WindowNode, windowNode.systemWindowID == systemWindowID {
-                return windowNode
-            }
-        }
-        
-        // Check container children
-        for child in children {
-            if let container = child as? ContainerNode {
-                for subChild in container.children {
-                    if let windowNode = subChild as? WindowNode, windowNode.systemWindowID == systemWindowID {
-                        return windowNode
-                    }
-                }
-            }
-        }
-        
-        return nil
-    }
     
-    /// Gets all window nodes in the workspace
-    /// - Returns: Array of all window nodes
-    func getAllWindowNodes() -> [WindowNode] {
-        var result: [WindowNode] = []
-        
-        // Check direct children
-        for child in children {
-            if let windowNode = child as? WindowNode {
-                result.append(windowNode)
-            }
-        }
-        
-        // Check container children
-        for child in children {
-            if let container = child as? ContainerNode {
-                for subChild in container.children {
-                    if let windowNode = subChild as? WindowNode {
-                        result.append(windowNode)
-                    }
-                }
-            }
-        }
-        
-        return result
-    }
 }
+
+

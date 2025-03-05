@@ -45,9 +45,6 @@ class WindowManager: ObservableObject {
         // Initialize tiling
         initializeTiling()
         
-        // Initialize auto-tiling
-        initializeAutoTiling()
-        
         // Initialize window tracking
         initializeWindowTracking()
         
@@ -195,9 +192,7 @@ class WindowManager: ObservableObject {
         }
         
         // After refreshing, apply tiling if auto-tiling is enabled
-        if autoTilingController.isAutoTilingEnabled() {
-            applyCurrentTiling()
-        }
+        applyCurrentTiling()
     }
     
     /// Gets the accessibility element for a window
@@ -262,10 +257,8 @@ class WindowManager: ObservableObject {
         windowOwnership[windowId] = workspace.id
         
         // Apply tiling if needed
-        if autoTilingController.isAutoTilingEnabled() {
-            if let monitor = workspace.monitor {
-                TilingManager.shared.applyTiling(to: workspace, on: monitor)
-            }
+        if let monitor = workspace.monitor {
+            TilingManager.shared.applyTiling(to: workspace, on: monitor)
         }
     }
     
@@ -294,8 +287,9 @@ class WindowManager: ObservableObject {
             }
         }
         
-        print("\nCurrent Tiling Mode: \(TilingManager.shared.getCurrentMode().description)")
-        print("Auto-Tiling: \(autoTilingController.isAutoTilingEnabled() ? "Enabled" : "Disabled")")
+        print(
+            "\nCurrent Tiling Mode: \(TilingManager.shared.getCurrentMode().description)"
+        )
     }
     
     /// Prints the window tree hierarchy

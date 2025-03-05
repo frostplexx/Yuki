@@ -15,15 +15,6 @@ extension WindowManager {
     func setupWindowTracking() {
         // Set up window observation
         setupWindowObservation()
-        
-        // Add periodic window check
-        Timer.scheduledTimer(
-            timeInterval: 5.0, // Check every 5 seconds
-            target: self,
-            selector: #selector(periodicWindowCheck),
-            userInfo: nil,
-            repeats: true
-        )
     }
     
     /// Periodic check for window changes

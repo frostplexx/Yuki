@@ -80,9 +80,6 @@ struct MenuBarView: View {
                 .padding(.top, 5)
                 .padding(.bottom, 2)
             
-            Button("Toggle Tiling") {
-                windowManager.toggleAutoTiling()
-            }
             
             Button("Cycle Next Tiling Mode") {
                 windowManager.cycleAndApplyNextTilingMode()

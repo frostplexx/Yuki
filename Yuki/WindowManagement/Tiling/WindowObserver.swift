@@ -403,8 +403,7 @@ extension WindowManager {
     /// Handle window moved event
     func handleWindowMoved(windowId: Int) {
         // Apply tiling if auto-tiling is enabled and not in float mode
-        if autoTilingController.isAutoTilingEnabled() &&
-           TilingManager.shared.getCurrentMode() != .float {
+        if TilingManager.shared.getCurrentMode() != .float {
             applyCurrentTiling()
         }
     }
@@ -412,8 +411,7 @@ extension WindowManager {
     /// Handle window resized event
     func handleWindowResized(windowId: Int) {
         // Apply tiling if auto-tiling is enabled and not in float mode
-        if autoTilingController.isAutoTilingEnabled() &&
-           TilingManager.shared.getCurrentMode() != .float {
+        if TilingManager.shared.getCurrentMode() != .float {
             applyCurrentTiling()
         }
     }
@@ -437,8 +435,7 @@ extension WindowManager {
             print("Stopped tracking window \(windowId)")
             
             // Apply tiling to reposition remaining windows
-            if autoTilingController.isAutoTilingEnabled() &&
-               TilingManager.shared.getCurrentMode() != .float {
+            if TilingManager.shared.getCurrentMode() != .float {
                 if let monitor = workspace.monitor {
                     TilingManager.shared.applyTiling(to: workspace, on: monitor)
                 }
