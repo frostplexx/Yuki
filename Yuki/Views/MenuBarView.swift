@@ -2,7 +2,7 @@
 //  MenuBarView.swift
 //  Yuki
 //
-//  Created by Daniel Inama on 4/3/25.
+//  Created by Claude AI on 6/3/25.
 //
 
 import SwiftUI
@@ -12,6 +12,9 @@ struct MenuBarView: View {
     @ObservedObject var windowManager: WindowManager
     @Binding var isCreatingWorkspace: Bool
     var openSettings: () -> Void
+    
+    // Local state
+    @State private var isPinningEnabled: Bool = false
     
     var body: some View {
         Group {
@@ -28,8 +31,15 @@ struct MenuBarView: View {
                 layoutActionsSection(workspace: selectedWorkspace)
             }
             
+            // Window pinning section
+            windowPinningSection()
+            
             // Settings and utilities
             utilitiesSection()
+        }
+        .onAppear {
+            // Initialize state from window manager
+            isPinningEnabled = windowManager.windowPinningEnabled
         }
     }
     
@@ -80,15 +90,49 @@ struct MenuBarView: View {
                 .padding(.top, 5)
                 .padding(.bottom, 2)
             
-            
-            Button("Cycle Next Tiling Mode") {
+            let currentMode = TilingEngine.shared.currentMode
+            Button("Current Mode: \(currentMode.description)") {
                 windowManager.cycleAndApplyNextTilingMode()
+                
+                // Update pinning state based on new mode
+                windowManager.handleTilingModeChange()
+                isPinningEnabled = windowManager.windowPinningEnabled
             }
             
-            Button("Apply Current Tiling Mode") {
-                windowManager.applyCurrentTiling()
+            Button("Apply Current Tiling") {
+                windowManager.applyCurrentTilingWithPinning()
             }
             
+            Divider()
+        }
+    }
+    
+    private func windowPinningSection() -> some View {
+        Group {
+            Text("Window Control")
+                .font(.headline)
+                .padding(.top, 5)
+                .padding(.bottom, 2)
+            
+            Toggle("Lock Windows in Place", isOn: $isPinningEnabled)
+                .onChange(of: isPinningEnabled) { newValue in
+                    if newValue {
+                        windowManager.enableWindowPinning()
+                    } else {
+                        windowManager.disableWindowPinning()
+                    }
+                }
+                .disabled(TilingEngine.shared.currentMode == .float)
+                .padding(.horizontal, 16)
+            
+            Button("Force Window Refresh") {
+                windowManager.windowObserver?.forceWindowRefresh()
+                
+                // If not in float mode, reapply tiling
+                if TilingEngine.shared.currentMode != .float {
+                    windowManager.applyCurrentTilingWithPinning()
+                }
+            }
             
             Divider()
         }
@@ -118,3 +162,4 @@ struct MenuBarView: View {
         }
     }
 }
+

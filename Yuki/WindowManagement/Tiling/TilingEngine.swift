@@ -2,7 +2,7 @@
 //  TilingEngine.swift
 //  Yuki
 //
-//  Created by Claude AI on 5/3/25.
+//  Created by Claude AI on 6/3/25.
 //
 
 import Foundation
@@ -30,9 +30,12 @@ class TilingEngine {
     /// UserDefaults key for storing tiling mode
     private let tilingModeKey = "YukiTilingMode"
     
+    /// Shared instance (singleton)
+    static let shared = TilingEngine()
+    
     // MARK: - Initialization
     
-    init() {
+    private init() {
         loadSavedMode()
     }
     
@@ -91,6 +94,17 @@ class TilingEngine {
         case .float:
             // Nothing to do in float mode
             break
+        }
+    }
+    
+    /// Apply tiling and enable pinning to keep windows in place
+    func applyTilingAndPin(to workspace: Workspace, on monitor: Monitor) {
+        // First apply normal tiling
+        applyTiling(to: workspace, on: monitor)
+        
+        // Then enable pinning if not in float mode
+        if currentMode != .float {
+            WindowManagerProvider.shared.enableWindowPinning()
         }
     }
     
@@ -218,51 +232,13 @@ class TilingEngine {
     private func setWindowFrame(_ windowNode: WindowNode, _ frame: NSRect) {
         // Use the AccessibilityService to set the frame
         accessibilityService.setFrame(frame, for: windowNode.window, animated: false)
-    }
-}
-
-// MARK: - Singleton for global access
-
-extension TilingEngine {
-    /// Shared instance
-    static let shared = TilingEngine()
-}
-
-// MARK: - WindowManager Extension
-
-extension WindowManager {
-    /// Apply current tiling mode to the active workspace
-    func applyCurrentTiling() {
-        guard let workspace = selectedWorkspace,
-              let monitor = monitors.first(where: { $0.workspaces.contains(where: { $0.id == workspace.id }) }) else {
-            return
+        
+        // Update pinned position in window manager if pinning is enabled
+        if let windowId = windowNode.systemWindowID {
+            let windowManager = WindowManagerProvider.shared
+            if windowManager.windowPinningEnabled {
+                windowManager.updatePinnedPosition(for: windowId, frame: frame)
+            }
         }
-        
-        // Apply tiling using the TilingEngine
-        TilingEngine.shared.applyTiling(to: workspace, on: monitor)
-    }
-    
-    /// Cycle to the next tiling mode and apply it
-    func cycleAndApplyNextTilingMode() {
-        // Cycle to next mode
-        let newMode = TilingEngine.shared.cycleToNextMode()
-        
-        // Apply the new tiling mode
-        applyCurrentTiling()
-        
-        print("Switched to \(newMode.description) mode")
-    }
-}
-
-// MARK: - Monitor Extension
-
-extension Monitor {
-    /// Apply current tiling mode to the active workspace
-    func applyTilingToActiveWorkspace() {
-        guard let workspace = activeWorkspace else {
-            return
-        }
-        
-        TilingEngine.shared.applyTiling(to: workspace, on: self)
     }
 }

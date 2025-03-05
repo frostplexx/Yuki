@@ -2,7 +2,7 @@
 //  WindowManager.swift
 //  Yuki
 //
-//  Created by Claude AI on 5/3/25.
+//  Created by Claude AI on 6/3/25.
 //
 
 import Foundation
@@ -10,10 +10,11 @@ import Cocoa
 import SwiftUI
 import Combine
 import os
+import ObjectiveC
 
 /// Main class responsible for window management
-class WindowManager: ObservableObject {
-    // MARK: - Properties
+class WindowManager: ObservableObject, WindowObserverDelegate {
+    // MARK: - Published Properties
     
     /// List of detected monitors
     @Published var monitors: [Monitor] = []
@@ -27,6 +28,8 @@ class WindowManager: ObservableObject {
     /// Maps window IDs to workspace IDs for tracking ownership
     @Published var windowOwnership: [Int: UUID] = [:]
     
+    // MARK: - Private Properties
+    
     /// Logger for debugging and performance tracking
     private let logger = Logger(subsystem: "com.frostplexx.Yuki", category: "WindowManager")
     
@@ -35,6 +38,24 @@ class WindowManager: ObservableObject {
     
     /// Cancellables for subscription management
     private var cancellables = Set<AnyCancellable>()
+    
+    /// Window observer instance
+    var windowObserver: WindowObserver?
+    
+    /// Dictionary storing pinned window positions
+    private var pinnedWindowPositions: [Int: NSRect] = [:]
+    
+    /// Whether window pinning is enabled
+    private var _windowPinningEnabled: Bool = false
+    
+    /// Timer for pinning
+    private var pinningTimer: Timer?
+    
+    /// Whether window pinning is enabled
+    var windowPinningEnabled: Bool {
+        get { return _windowPinningEnabled }
+        set { _windowPinningEnabled = newValue }
+    }
     
     // MARK: - Initialization
     
@@ -60,6 +81,9 @@ class WindowManager: ObservableObject {
         // Initial refresh of windows
         refreshWindows()
         
+        // Enhanced initialization with improved window detection
+        enhancedInitialization()
+        
         // Listen for screen configuration changes
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .throttle(for: 1.0, scheduler: RunLoop.main, latest: true)
@@ -67,6 +91,25 @@ class WindowManager: ObservableObject {
                 self?.handleScreenConfigurationChange()
             }
             .store(in: &cancellables)
+    }
+    
+    /// Enhanced initialization with improved window detection
+    func enhancedInitialization() {
+        // First, ensure we have accessibility permissions
+        if !AccessibilityService.shared.hasAccessibilityPermission {
+            AccessibilityService.shared.requestPermission()
+        }
+        
+        // Set up window observation with enhanced detection
+        setupEnhancedWindowObservation()
+        
+        // Enable window pinning for the BSP and stack tiling modes
+        if TilingEngine.shared.currentMode != .float {
+            enableWindowPinning()
+        }
+        
+        // Initial tiling application
+        applyCurrentTilingWithPinning()
     }
     
     // MARK: - Monitor Management
@@ -315,6 +358,336 @@ class WindowManager: ObservableObject {
         }
     }
     
+    // MARK: - Window Event Handling
+    
+    /// Setup enhanced window observation
+    private func setupEnhancedWindowObservation() {
+        // Create and store a window observer
+        windowObserver = WindowObserver(delegate: self)
+        
+        // Start observing
+        windowObserver?.startObserving()
+        
+        // Apply enhanced detection methods
+        windowObserver?.enhanceInitialWindowDetection()
+        windowObserver?.forceWindowRefresh()
+    }
+    
+    /// Set up window observation
+    func setupWindowObservation() {
+        // Create and store a window observer
+        windowObserver = WindowObserver(delegate: self)
+        
+        // Start observing
+        windowObserver?.startObserving()
+    }
+    
+    /// Handle window events from observer
+    func handleWindowEvent(_ event: WindowEvent) {
+        switch event.type {
+        case .created:
+            if let windowId = event.windowId, let windowInfo = event.windowInfo {
+                handleNewWindow(windowId: Int(windowId), windowInfo: windowInfo)
+                
+                // Update pinning if enabled
+                if windowPinningEnabled,
+                   let windowElement = AccessibilityService.shared.getWindowElement(for: windowId),
+                   let frame = AccessibilityService.shared.getPosition(for: windowElement).map({ position in
+                       NSRect(origin: position,
+                              size: AccessibilityService.shared.getSize(for: windowElement) ?? NSSize(width: 800, height: 600))
+                   }) {
+                    updatePinnedPosition(for: Int(windowId), frame: frame)
+                }
+            }
+            
+        case .closed:
+            if let windowId = event.windowId {
+                handleWindowClosed(windowId: Int(windowId))
+                
+                // Remove from pinned windows if needed
+                if windowPinningEnabled {
+                    pinnedWindowPositions.removeValue(forKey: Int(windowId))
+                }
+            }
+            
+        case .moved:
+            if let windowId = event.windowId {
+                if windowPinningEnabled {
+                    handleWindowMovedForPinning(windowId: Int(windowId))
+                } else if TilingEngine.shared.currentMode != .float {
+                    debounceApplyTiling()
+                }
+            }
+            
+        case .resized:
+            if let windowId = event.windowId {
+                if windowPinningEnabled {
+                    // Restore pinned size
+                    if let pinnedFrame = pinnedWindowPositions[Int(windowId)],
+                       let windowElement = AccessibilityService.shared.getWindowElement(for: windowId) {
+                        AccessibilityService.shared.setSize(pinnedFrame.size, for: windowElement)
+                    }
+                } else if TilingEngine.shared.currentMode != .float {
+                    debounceApplyTiling()
+                }
+            }
+            
+        case .appActivated, .appTerminated, .spaceChanged:
+            // Force a complete refresh for major system events
+            windowObserver?.forceWindowRefresh()
+            
+            // If not in float mode, reapply tiling with pinning
+            if TilingEngine.shared.currentMode != .float {
+                applyCurrentTilingWithPinning()
+            }
+            
+        default:
+            break
+        }
+    }
+    
+    /// Handle a new window being detected
+    private func handleNewWindow(windowId: Int, windowInfo: [String: Any]) {
+        guard let pid = windowInfo["kCGWindowOwnerPID"] as? pid_t,
+              let bounds = windowInfo["kCGWindowBounds"] as? [String: Any],
+              let x = bounds["X"] as? CGFloat,
+              let y = bounds["Y"] as? CGFloat else {
+            return
+        }
+        
+        // Skip windows that are already assigned
+        if windowOwnership[windowId] != nil {
+            return
+        }
+        
+        // Find which monitor contains this window
+        let windowPosition = NSPoint(x: x, y: y)
+        let targetMonitor = monitorContaining(point: windowPosition) ?? monitors.first
+        
+        // Get the active workspace for this monitor
+        guard let targetMonitor = targetMonitor,
+              let targetWorkspace = targetMonitor.activeWorkspace ?? targetMonitor.workspaces.first else {
+            return
+        }
+        
+        // Get the underlying AXUIElement for this window
+        if let window = AccessibilityService.shared.getWindowElement(for: CGWindowID(windowId)) {
+            assignWindowToWorkspace(
+                window: window,
+                windowId: windowId,
+                title: windowInfo["kCGWindowName"] as? String,
+                workspace: targetWorkspace
+            )
+        }
+    }
+    
+    /// Assign a window to a workspace
+    private func assignWindowToWorkspace(window: AXUIElement, windowId: Int, title: String?, workspace: Workspace) {
+        // Create a window node
+        let windowNode = WindowNode(window: window, systemWindowID: windowId, title: title)
+        
+        // Disable enhanced user interface for better tiling
+        accessibilityService.disableEnhancedUserInterface(for: window)
+        
+        // Add to workspace
+        workspace.addWindowToDefaultContainer(windowNode)
+        
+        // Register ownership
+        windowOwnership[windowId] = workspace.id
+        
+        // Apply tiling if needed
+        if TilingEngine.shared.currentMode != .float {
+            debounceApplyTiling()
+        }
+    }
+    
+    /// Handle window closed event
+    func handleWindowClosed(windowId: Int) {
+        // Remove the window from tracking
+        if let workspaceId = windowOwnership[windowId],
+           let workspace = workspaces.first(where: { $0.id == workspaceId }),
+           let windowNode = workspace.findWindowNode(systemWindowID: windowId) {
+            
+            // Remove from parent
+            if let parent = windowNode.parent {
+                var mutableParent = parent
+                mutableParent.remove(windowNode)
+            }
+            
+            // Remove from ownership map
+            windowOwnership.removeValue(forKey: windowId)
+            
+            // Apply tiling to reposition remaining windows
+            if TilingEngine.shared.currentMode != .float {
+                debounceApplyTiling()
+            }
+        }
+    }
+    
+    // MARK: - Tiling Operations
+    
+    /// Apply current tiling mode to the active workspace
+    func applyCurrentTiling() {
+        guard let workspace = selectedWorkspace,
+              let monitor = monitors.first(where: { $0.workspaces.contains(where: { $0.id == workspace.id }) }) else {
+            return
+        }
+        
+        // Apply tiling using the TilingEngine
+        TilingEngine.shared.applyTiling(to: workspace, on: monitor)
+    }
+    
+    /// Apply current tiling with pinning
+    func applyCurrentTilingWithPinning() {
+        guard let workspace = selectedWorkspace,
+              let monitor = monitors.first(where: { $0.workspaces.contains(where: { $0.id == workspace.id }) }) else {
+            return
+        }
+        
+        // Apply tiling using the TilingEngine
+        TilingEngine.shared.applyTilingAndPin(to: workspace, on: monitor)
+    }
+    
+    /// Cycle to the next tiling mode and apply it
+    func cycleAndApplyNextTilingMode() {
+        // Cycle to next mode
+        let newMode = TilingEngine.shared.cycleToNextMode()
+        
+        // Apply the new tiling mode
+        applyCurrentTiling()
+        
+        // Update pinning state based on new mode
+        handleTilingModeChange()
+        
+        print("Switched to \(newMode.description) mode")
+    }
+    
+    /// Handle tiling mode change with pinning update
+    func handleTilingModeChange() {
+        // If switching to float, disable pinning
+        if TilingEngine.shared.currentMode == .float {
+            disableWindowPinning()
+        } else {
+            // For BSP and Stack modes, apply tiling and enable pinning
+            applyCurrentTilingWithPinning()
+        }
+    }
+    
+    /// Apply tiling with debouncing to avoid excessive operations
+    private func debounceApplyTiling() {
+        // Use a static work item that's shared across the app
+        DispatchQueue.tilingWorkItem?.cancel()
+        
+        // Create new work item
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.applyCurrentTiling()
+        }
+        
+        // Store for later cancellation
+        DispatchQueue.tilingWorkItem = workItem
+        
+        // Schedule after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
+    }
+    
+    // MARK: - Window Pinning
+    
+    /// Enable window pinning to prevent manual movement
+    func enableWindowPinning() {
+        // Store original position of all windows
+        storeAllWindowPositions()
+        
+        // Start listening for window moves
+        startListeningForWindowMoves()
+    }
+    
+    /// Disable window pinning
+    func disableWindowPinning() {
+        windowPinningEnabled = false
+        stopPinningTimer()
+    }
+    
+    /// Store the positions of all windows
+    private func storeAllWindowPositions() {
+        windowPinningEnabled = true
+        pinnedWindowPositions.removeAll()
+        
+        // Store positions of all windows
+        for workspace in workspaces {
+            for windowNode in workspace.root.getAllWindowNodes() {
+                if let windowId = windowNode.systemWindowID,
+                   let frame = windowNode.frame {
+                    pinnedWindowPositions[windowId] = frame
+                }
+            }
+        }
+    }
+    
+    /// Start listening for window move events
+    private func startListeningForWindowMoves() {
+        // Already set up in WindowObserver, just need to process the events properly
+        
+        // But we'll also set up a backup timer to restore positions periodically
+        stopPinningTimer()
+        
+        pinningTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.checkAndRestoreWindowPositions()
+        }
+    }
+    
+    /// Stop the pinning timer
+    private func stopPinningTimer() {
+        pinningTimer?.invalidate()
+        pinningTimer = nil
+    }
+    
+    /// Check and restore window positions if they've been moved
+    private func checkAndRestoreWindowPositions() {
+        guard windowPinningEnabled else { return }
+        
+        for (windowId, pinnedFrame) in pinnedWindowPositions {
+            if let windowElement = AccessibilityService.shared.getWindowElement(for: CGWindowID(windowId)),
+               let currentPosition = AccessibilityService.shared.getPosition(for: windowElement),
+               let currentSize = AccessibilityService.shared.getSize(for: windowElement) {
+                
+                let currentFrame = NSRect(origin: currentPosition, size: currentSize)
+                
+                // If position has changed by more than a small threshold, restore it
+                let positionThreshold: CGFloat = 5.0
+                if abs(currentFrame.origin.x - pinnedFrame.origin.x) > positionThreshold ||
+                   abs(currentFrame.origin.y - pinnedFrame.origin.y) > positionThreshold {
+                    
+                    // Restore the pinned position
+                    AccessibilityService.shared.setPosition(pinnedFrame.origin, for: windowElement)
+                }
+                
+                // If size has changed by more than a small threshold, restore it
+                let sizeThreshold: CGFloat = 5.0
+                if abs(currentFrame.size.width - pinnedFrame.size.width) > sizeThreshold ||
+                   abs(currentFrame.size.height - pinnedFrame.size.height) > sizeThreshold {
+                    
+                    // Restore the pinned size
+                    AccessibilityService.shared.setSize(pinnedFrame.size, for: windowElement)
+                }
+            }
+        }
+    }
+    
+    /// Update the pinned position for a specific window
+    func updatePinnedPosition(for windowId: Int, frame: NSRect) {
+        pinnedWindowPositions[windowId] = frame
+    }
+    
+    /// Handle window moved event specifically for pinning
+    func handleWindowMovedForPinning(windowId: Int) {
+        guard windowPinningEnabled, let pinnedFrame = pinnedWindowPositions[windowId] else { return }
+        
+        if let windowElement = AccessibilityService.shared.getWindowElement(for: CGWindowID(windowId)) {
+            // Restore the pinned position
+            AccessibilityService.shared.setPosition(pinnedFrame.origin, for: windowElement)
+        }
+    }
+    
     // MARK: - Cleanup Functions
     
     /// Clean up workspaces and ensure proper structure
@@ -352,6 +725,8 @@ class WindowManager: ObservableObject {
         }
         
         print("\nCurrent Tiling Mode: \(TilingEngine.shared.currentMode.description)")
+        print("Window Pinning Enabled: \(windowPinningEnabled)")
+        print("Pinned Windows Count: \(pinnedWindowPositions.count)")
     }
     
     /// Prints the window tree hierarchy
@@ -376,73 +751,6 @@ enum WindowManagerError: Error {
     case noMonitorsFound
     case workspaceNotFound
     case windowNotFound
-}
-
-// MARK: - Monitor Extension for Workspace Management
-
-extension Monitor {
-    /// Activates the specified workspace on this monitor
-    /// - Parameter workspace: The workspace to activate
-    /// - Returns: True if activation was successful
-    @discardableResult
-    func activateWorkspace(_ workspace: Workspace) -> Bool {
-        // Ensure the workspace belongs to this monitor
-        guard workspaces.contains(where: { $0.id == workspace.id }) else {
-            return false
-        }
-        
-        // Don't do anything if it's already active
-        if activeWorkspace?.id == workspace.id {
-            return true
-        }
-        
-        // Store current window positions if switching from another workspace
-        if let currentWorkspace = activeWorkspace {
-            // Hide windows from current workspace
-            for windowNode in currentWorkspace.root.getAllWindowNodes() {
-                if let window = windowNode.window as? AXUIElement {
-                    // Move off-screen to hide
-                    let offscreenPoint = NSPoint(x: -10000, y: -10000)
-                    AccessibilityService.shared.setPosition(offscreenPoint, for: window)
-                }
-            }
-        }
-        
-        // Set as active workspace
-        activeWorkspace = workspace
-        
-        // Show windows for new workspace
-        for windowNode in workspace.root.getAllWindowNodes() {
-            if let window = windowNode.window as AXUIElement? {
-                // Apply correct position based on tiling mode
-                if TilingEngine.shared.currentMode != .float {
-                    // Windows will be positioned by tiling engine
-                } else if let position = AccessibilityService.shared.getPosition(for: window),
-                          let size = AccessibilityService.shared.getSize(for: window) {
-                    // Restore saved position and size
-                    let frame = NSRect(origin: position, size: size)
-                    AccessibilityService.shared.setFrame(frame, for: window)
-                } else {
-                    // Default center position if no saved position
-                    let defaultSize = NSSize(width: 800, height: 600)
-                    let x = (visibleFrame.width - defaultSize.width) / 2 + visibleFrame.minX
-                    let y = (visibleFrame.height - defaultSize.height) / 2 + visibleFrame.minY
-                    let defaultFrame = NSRect(x: x, y: y, width: defaultSize.width, height: defaultSize.height)
-                    AccessibilityService.shared.setFrame(defaultFrame, for: window)
-                }
-                
-                // Bring window to front
-                AccessibilityService.shared.raiseWindow(window)
-            }
-        }
-        
-        // Apply tiling if needed
-        if TilingEngine.shared.currentMode != .float {
-            TilingEngine.shared.applyTiling(to: workspace, on: self)
-        }
-        
-        return true
-    }
 }
 
 // MARK: - Singleton Provider
