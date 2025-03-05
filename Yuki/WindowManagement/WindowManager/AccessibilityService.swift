@@ -1,5 +1,5 @@
 //
-//  WindowManager.swift
+//  AccessibilityService.swift
 //  Yuki
 //
 //  Created by Daniel Inama on 5/3/25.
