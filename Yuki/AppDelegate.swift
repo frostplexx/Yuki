@@ -9,7 +9,6 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        WindowManager.requestAccessibilityPermission()
         // Setup global hotkeys or other initialization
         setupGlobalHotkeys()
     }

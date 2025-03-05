@@ -2,417 +2,497 @@
 //  WindowObserver.swift
 //  Yuki
 //
-//  Created by Daniel Inama on 5/3/25.
+//  Created by Claude AI on 5/3/25.
 //
 
-import Foundation
 import Cocoa
 import ApplicationServices
+import os
 
-/// Class for observing window events and notifying the window manager
-class WindowObserver {
-    // MARK: - Properties
+/// Types of window events that can be observed
+enum WindowEventType: String {
+    case created = "created"
+    case closed = "closed"
+    case moved = "moved"
+    case resized = "resized"
+    case titleChanged = "titleChanged"
+    case minimized = "minimized"
+    case unminimized = "unminimized"
+    case focused = "focused"
+    case appActivated = "appActivated"
+    case appTerminated = "appTerminated"
+    case spaceChanged = "spaceChanged"
+}
+
+/// Structure representing a window event
+struct WindowEvent {
+    let type: WindowEventType
+    let windowId: CGWindowID?
+    let pid: pid_t?
+    let timestamp: Date
+    let windowInfo: [String: Any]?
     
-    /// The window manager to notify
-    private weak var windowManager: WindowManager?
-    
-    /// Dictionary mapping window IDs to their observation tokens
-    private var observationTokens: [CGWindowID: [ObservationToken]] = [:]
-    
-    /// Token structure for managing observations
-    private struct ObservationToken {
-        let element: AXUIElement
-        let notification: String
-        let observer: AXObserver
-    }
-    
-    // MARK: - Initialization
-    
-    /// Initialize with a window manager
-    /// - Parameter windowManager: The window manager to notify of events
-    init(windowManager: WindowManager) {
-        self.windowManager = windowManager
-        
-        // Start observing general window changes
-        startObservingGeneralWindowChanges()
-    }
-    
-    // MARK: - Global Window Observation
-    
-    /// Start observing general window changes using the workspace notification center
-    private func startObservingGeneralWindowChanges() {
-        // Workspace notifications
-        let notificationCenter = NSWorkspace.shared.notificationCenter
-        
-        // Application activated - might bring new windows
-        notificationCenter.addObserver(
-            self,
-            selector: #selector(handleApplicationChange),
-            name: NSWorkspace.didActivateApplicationNotification,
-            object: nil
-        )
-        
-        // Application terminated - clean up windows
-        notificationCenter.addObserver(
-            self,
-            selector: #selector(handleApplicationTermination),
-            name: NSWorkspace.didTerminateApplicationNotification,
-            object: nil
-        )
-        
-        // Space change - update window tracking
-        notificationCenter.addObserver(
-            self,
-            selector: #selector(handleSpaceChange),
-            name: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil
-        )
-        
-        // Also use a periodic timer to catch new windows
-        Timer.scheduledTimer(
-            timeInterval: 2.0,
-            target: self,
-            selector: #selector(periodicWindowCheck),
-            userInfo: nil,
-            repeats: true
-        )
-    }
-    
-    // MARK: - Event Handlers
-    
-    /// Handle application change notification
-    @objc private func handleApplicationChange(notification: Notification) {
-        // An application was activated, check for new windows
-        if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
-            // Slight delay to allow windows to become available
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.observeWindowsForApplication(pid: app.processIdentifier)
-            }
-        }
-    }
-    
-    /// Handle application termination
-    @objc private func handleApplicationTermination(notification: Notification) {
-        // An application terminated, clean up its windows
-        if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
-            self.cleanupWindowsForApplication(pid: app.processIdentifier)
-        }
-    }
-    
-    /// Handle space (virtual desktop) change
-    @objc private func handleSpaceChange(notification: Notification) {
-        // Space changed, refresh window tracking
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            self.windowManager?.refreshWindows()
-        }
-    }
-    
-    /// Periodic check for new windows
-    @objc private func periodicWindowCheck() {
-        // Get the current window list
-        let currentWindows = getVisibleWindowList()
-        
-        // Check for new windows that we aren't tracking
-        for windowInfo in currentWindows {
-            if let windowId = windowInfo["kCGWindowNumber"] as? Int,
-               let pid = windowInfo["kCGWindowOwnerPID"] as? pid_t {
-                // If we don't have observers for this window, set them up
-                if !observationTokens.keys.contains(CGWindowID(windowId)) {
-                    // Try to get the window element
-                    if let windowElement = getWindowElement(for: pid, windowId: windowId) {
-                        observeWindow(windowElement, windowId: CGWindowID(windowId))
-                    }
-                }
-            }
-        }
-        
-        // Refresh window manager
-        windowManager?.checkForWindowChanges()
-    }
-    
-    // MARK: - Window Observation
-    
-    /// Observe windows for a specific application
-    /// - Parameter pid: The process ID of the application
-    private func observeWindowsForApplication(pid: pid_t) {
-        // Get the accessibility element for the application
-        let appElement = AXUIElementCreateApplication(pid)
-        
-        // Get all windows for this application
-        var windowsRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-              let windows = windowsRef as? [AXUIElement]
-        else { return }
-        
-        // Set up observers for each window
-        for window in windows {
-            // Get the window ID
-            var windowId: CGWindowID = 0
-            if _AXUIElementGetWindow(window, &windowId) == .success {
-                observeWindow(window, windowId: windowId)
-            }
-        }
-    }
-    
-    /// Clean up windows for a terminated application
-    /// - Parameter pid: The process ID of the terminated application
-    private func cleanupWindowsForApplication(pid: pid_t) {
-        // Get the window list from CGWindowList
-        let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionOnScreenOnly)
-        guard let windowList = CGWindowListCopyWindowInfo(options, CGWindowID(0)) as? [[String: Any]] else {
-            return
-        }
-        
-        // Find windows owned by this application
-        let appWindows = windowList.filter { ($0["kCGWindowOwnerPID"] as? pid_t) == pid }
-        
-        // Remove observers and notify window manager
-        for windowInfo in appWindows {
-            if let windowId = windowInfo["kCGWindowNumber"] as? Int {
-                removeObserversForWindow(CGWindowID(windowId))
-                windowManager?.handleWindowClosed(windowId: windowId)
-            }
-        }
-    }
-    
-    /// Observe a specific window for events
-    /// - Parameters:
-    ///   - window: The window element to observe
-    ///   - windowId: The window ID
-    private func observeWindow(_ window: AXUIElement, windowId: CGWindowID) {
-        // Check if we're already observing this window
-        if observationTokens[windowId] != nil {
-            return
-        }
-        
-        // Create an observer for this window's process
-        var pid: pid_t = 0
-        guard AXUIElementGetPid(window, &pid) == .success else {
-            return
-        }
-        
-        var observer: AXObserver?
-        let createResult = AXObserverCreate(pid, observerCallback, &observer)
-        
-        guard createResult == .success, let axObserver = observer else {
-            return
-        }
-        
-        // Set up notification tokens
-        var tokens: [ObservationToken] = []
-        
-        // Observe window moved
-        if addObserver(axObserver, window, kAXMovedNotification as CFString) {
-            tokens.append(ObservationToken(
-                element: window,
-                notification: kAXMovedNotification as String,
-                observer: axObserver
-            ))
-        }
-        
-        // Observe window resized
-        if addObserver(axObserver, window, kAXResizedNotification as CFString) {
-            tokens.append(ObservationToken(
-                element: window,
-                notification: kAXResizedNotification as String,
-                observer: axObserver
-            ))
-        }
-        
-        // Observe window title change
-        if addObserver(axObserver, window, kAXTitleChangedNotification as CFString) {
-            tokens.append(ObservationToken(
-                element: window,
-                notification: kAXTitleChangedNotification as String,
-                observer: axObserver
-            ))
-        }
-        
-        // Observe window destruction
-        if addObserver(axObserver, window, kAXUIElementDestroyedNotification as CFString) {
-            tokens.append(ObservationToken(
-                element: window,
-                notification: kAXUIElementDestroyedNotification as String,
-                observer: axObserver
-            ))
-        }
-        
-        // Store the tokens
-        if !tokens.isEmpty {
-            observationTokens[windowId] = tokens
-            
-            // Start the observer run loop source
-            let runLoopSource = AXObserverGetRunLoopSource(axObserver)
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
-            
-            print("Started observing window \(windowId)")
-        }
-    }
-    
-    /// Helper to add an observer for a specific notification
-    /// - Parameters:
-    ///   - observer: The accessibility observer
-    ///   - element: The element to observe
-    ///   - notification: The notification to observe
-    /// - Returns: Whether the observer was added successfully
-    private func addObserver(_ observer: AXObserver, _ element: AXUIElement, _ notification: CFString) -> Bool {
-        let error = AXObserverAddNotification(observer, element, notification, UnsafeMutableRawPointer(bitPattern: Int(notification.hashValue)))
-        return error == .success
-    }
-    
-    /// Remove observers for a window
-    /// - Parameter windowId: The window ID
-    private func removeObserversForWindow(_ windowId: CGWindowID) {
-        // Get the tokens for this window
-        guard let tokens = observationTokens[windowId] else {
-            return
-        }
-        
-        // Remove each observer
-        for token in tokens {
-            AXObserverRemoveNotification(token.observer, token.element, token.notification as CFString)
-        }
-        
-        // Remove the tokens
-        observationTokens.removeValue(forKey: windowId)
-        
-        print("Stopped observing window \(windowId)")
-    }
-    
-    // MARK: - Utilities
-    
-    /// Gets a visible window list from the system
-    /// - Returns: Array of window info dictionaries
-    private func getVisibleWindowList() -> [[String: Any]] {
-        let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionOnScreenOnly)
-        guard let windowList = CGWindowListCopyWindowInfo(options, CGWindowID(0)) as? [[String: Any]] else {
-            return []
-        }
-        
-        return windowList.filter { ($0["kCGWindowLayer"] as? Int) == 0 }
-    }
-    
-    /// Gets a window element for a specific window ID
-    /// - Parameters:
-    ///   - pid: The process ID of the window's application
-    ///   - windowId: The window ID
-    /// - Returns: The window element if found
-    private func getWindowElement(for pid: pid_t, windowId: Int) -> AXUIElement? {
-        let app = AXUIElementCreateApplication(pid)
-        
-        // Get all windows for this application
-        var windowsRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-              let windows = windowsRef as? [AXUIElement]
-        else { return nil }
-        
-        // Find the window with the matching ID
-        for window in windows {
-            var windowIdValue: CGWindowID = 0
-            if _AXUIElementGetWindow(window, &windowIdValue) == .success,
-               windowIdValue == CGWindowID(windowId) {
-                return window
-            }
-        }
-        
-        return nil
+    init(type: WindowEventType, windowId: CGWindowID? = nil, pid: pid_t? = nil, windowInfo: [String: Any]? = nil) {
+        self.type = type
+        self.windowId = windowId
+        self.pid = pid
+        self.timestamp = Date()
+        self.windowInfo = windowInfo
     }
 }
 
-// MARK: - AX Observer Callback
+/// Protocol for window event handlers
+protocol WindowObserverDelegate: AnyObject {
+    func handleWindowEvent(_ event: WindowEvent)
+}
+
+/// Class for observing window events efficiently
+class WindowObserver {
+    // MARK: - Properties
+    
+    /// Delegate to handle window events
+    weak var delegate: WindowObserverDelegate?
+    
+    /// Logger for debugging and performance tracking
+    private let logger = Logger(subsystem: "com.frostplexx.Yuki", category: "WindowObserver")
+    
+    /// Accessibility service reference
+    private let accessibilityService = AccessibilityService.shared
+    
+    /// Dictionary mapping window IDs to their observation tokens
+    private var observedWindows: [CGWindowID: ObservationToken] = [:]
+    
+    /// Dictionary mapping process IDs to their AXObservers
+    private var observers: [pid_t: AXObserver] = [:]
+    
+    /// Structure to track observation tokens
+    private struct ObservationToken {
+        let element: AXUIElement
+        let pid: pid_t
+    }
+    
+    /// Notification center token for workspace notifications
+    private var workspaceNotificationTokens: [NSObjectProtocol] = []
+    
+    /// Set of newly created window IDs to avoid duplicate events
+    private var newlyCreatedWindows = Set<CGWindowID>()
+    
+    /// Last known window list for detecting new and closed windows
+    private var lastKnownWindowIds = Set<CGWindowID>()
+    
+    // MARK: - Initialization and Cleanup
+    
+    init(delegate: WindowObserverDelegate) {
+        self.delegate = delegate
+        setupWorkspaceNotifications()
+    }
+    
+    deinit {
+        stopObserving()
+    }
+    
+    // MARK: - Public Methods
+    
+    /// Start observing all windows
+    func startObserving() {
+        // Start with a clean slate
+        stopObserving()
+        
+        // First fetch all current windows
+        updateWindowList()
+        
+        // Schedule periodic window list refresh (at a reasonable interval)
+        // This is a fallback to catch any windows we might miss with the event-based approach
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.updateWindowList()
+        }
+    }
+    
+    /// Stop observing all windows
+    func stopObserving() {
+        // Clean up window observation
+        for (_, token) in observedWindows {
+            if let observer = observers[token.pid] {
+                accessibilityService.stopObserving(observer)
+            }
+        }
+        
+        // Clean up observers
+        observers.removeAll()
+        observedWindows.removeAll()
+        
+        // Remove workspace notification tokens
+        for token in workspaceNotificationTokens {
+            NotificationCenter.default.removeObserver(token)
+        }
+        workspaceNotificationTokens.removeAll()
+    }
+    
+    /// Force refresh of the window list
+    func refreshWindowList() {
+        updateWindowList()
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Setup notifications from the workspace
+    private func setupWorkspaceNotifications() {
+        let notificationCenter = NSWorkspace.shared.notificationCenter
+        
+        // Application activated
+        let appActivatedToken = notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleApplicationActivated(notification)
+        }
+        workspaceNotificationTokens.append(appActivatedToken)
+        
+        // Application terminated
+        let appTerminatedToken = notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleApplicationTerminated(notification)
+        }
+        workspaceNotificationTokens.append(appTerminatedToken)
+        
+        // Space changed
+        let spaceChangedToken = notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleSpaceChanged(notification)
+        }
+        workspaceNotificationTokens.append(spaceChangedToken)
+    }
+    
+    /// Update the list of windows and detect changes
+    private func updateWindowList() {
+        // Get current window list
+        let currentWindows = accessibilityService.getAllVisibleWindows()
+        
+        // Create set of current window IDs
+        let currentWindowIds = Set(currentWindows.compactMap { $0["kCGWindowNumber"] as? Int }.map { CGWindowID($0) })
+        
+        // Find new windows (current - last known)
+        let newWindowIds = currentWindowIds.subtracting(lastKnownWindowIds).subtracting(newlyCreatedWindows)
+        
+        // Find closed windows (last known - current)
+        let closedWindowIds = lastKnownWindowIds.subtracting(currentWindowIds)
+        
+        // Handle new windows
+        for windowId in newWindowIds {
+            if let windowInfo = currentWindows.first(where: { ($0["kCGWindowNumber"] as? Int) == Int(windowId) }) {
+                handleNewWindow(windowId: windowId, windowInfo: windowInfo)
+            }
+        }
+        
+        // Handle closed windows
+        for windowId in closedWindowIds {
+            handleClosedWindow(windowId: windowId)
+        }
+        
+        // Update last known window list
+        lastKnownWindowIds = currentWindowIds
+        
+        // Clear newly created windows set (they're now in lastKnownWindowIds)
+        newlyCreatedWindows.removeAll()
+        
+        // Schedule next update with a reasonable interval
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.updateWindowList()
+        }
+    }
+    
+    /// Handle a new window being detected
+    private func handleNewWindow(windowId: CGWindowID, windowInfo: [String: Any]) {
+        guard let pid = windowInfo["kCGWindowOwnerPID"] as? pid_t else { return }
+        
+        // Add to newly created windows set
+        newlyCreatedWindows.insert(windowId)
+        
+        // Create window observation
+        if let windowElement = accessibilityService.getWindowElement(for: windowId) {
+            observeWindow(windowElement, windowId: windowId, pid: pid)
+            
+            // Notify delegate
+            let event = WindowEvent(type: .created, windowId: windowId, pid: pid, windowInfo: windowInfo)
+            delegate?.handleWindowEvent(event)
+        }
+    }
+    
+    /// Handle a window being closed
+    private func handleClosedWindow(windowId: CGWindowID) {
+        // Remove observation
+        if let token = observedWindows[windowId] {
+            if let observer = observers[token.pid] {
+                // Remove notifications for this window
+                accessibilityService.removeNotification(kAXMovedNotification, from: token.element, for: observer)
+                accessibilityService.removeNotification(kAXResizedNotification, from: token.element, for: observer)
+                accessibilityService.removeNotification(kAXTitleChangedNotification, from: token.element, for: observer)
+                accessibilityService.removeNotification(kAXUIElementDestroyedNotification, from: token.element, for: observer)
+            }
+            
+            // Remove from observed windows
+            observedWindows.removeValue(forKey: windowId)
+        }
+        
+        // Notify delegate
+        let event = WindowEvent(type: .closed, windowId: windowId)
+        delegate?.handleWindowEvent(event)
+    }
+    
+    /// Observe a specific window for events
+    private func observeWindow(_ window: AXUIElement, windowId: CGWindowID, pid: pid_t) {
+        // Check if we're already observing this window
+        if observedWindows[windowId] != nil {
+            return
+        }
+        
+        // Get or create observer for this process
+        let observer: AXObserver
+        if let existingObserver = observers[pid] {
+            observer = existingObserver
+        } else if let newObserver = accessibilityService.createObserver(for: pid, callback: windowEventCallback) {
+            observer = newObserver
+            observers[pid] = observer
+            accessibilityService.startObserving(observer)
+        } else {
+            return
+        }
+        
+        // Create context pointers for different notifications
+        let movedContext = UnsafeMutableRawPointer.allocate(byteCount: MemoryLayout<CGWindowID>.size, alignment: MemoryLayout<CGWindowID>.alignment)
+        movedContext.storeBytes(of: windowId, as: CGWindowID.self)
+        
+        let resizedContext = UnsafeMutableRawPointer.allocate(byteCount: MemoryLayout<CGWindowID>.size, alignment: MemoryLayout<CGWindowID>.alignment)
+        resizedContext.storeBytes(of: windowId, as: CGWindowID.self)
+        
+        let titleContext = UnsafeMutableRawPointer.allocate(byteCount: MemoryLayout<CGWindowID>.size, alignment: MemoryLayout<CGWindowID>.alignment)
+        titleContext.storeBytes(of: windowId, as: CGWindowID.self)
+        
+        let destroyedContext = UnsafeMutableRawPointer.allocate(byteCount: MemoryLayout<CGWindowID>.size, alignment: MemoryLayout<CGWindowID>.alignment)
+        destroyedContext.storeBytes(of: windowId, as: CGWindowID.self)
+        
+        // Add notifications to observer
+        accessibilityService.addNotification(kAXMovedNotification, to: window, for: observer, userData: movedContext)
+        accessibilityService.addNotification(kAXResizedNotification, to: window, for: observer, userData: resizedContext)
+        accessibilityService.addNotification(kAXTitleChangedNotification, to: window, for: observer, userData: titleContext)
+        accessibilityService.addNotification(kAXUIElementDestroyedNotification, to: window, for: observer, userData: destroyedContext)
+        
+        // Store token
+        observedWindows[windowId] = ObservationToken(element: window, pid: pid)
+    }
+    
+    // MARK: - Workspace Notification Handlers
+    
+    /// Handle application activated notification
+    private func handleApplicationActivated(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
+            return
+        }
+        
+        // Notify delegate
+        let event = WindowEvent(type: .appActivated, pid: app.processIdentifier)
+        delegate?.handleWindowEvent(event)
+        
+        // Update window list to catch new windows
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.updateWindowList()
+        }
+    }
+    
+    /// Handle application terminated notification
+    private func handleApplicationTerminated(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
+            return
+        }
+        
+        let pid = app.processIdentifier
+        
+        // Notify delegate
+        let event = WindowEvent(type: .appTerminated, pid: pid)
+        delegate?.handleWindowEvent(event)
+        
+        // Clean up observer for this process
+        if let observer = observers[pid] {
+            accessibilityService.stopObserving(observer)
+            observers.removeValue(forKey: pid)
+        }
+        
+        // Remove windows belonging to this process
+        let windowsToRemove = observedWindows.filter { $0.value.pid == pid }
+        for (windowId, _) in windowsToRemove {
+            observedWindows.removeValue(forKey: windowId)
+            lastKnownWindowIds.remove(windowId)
+        }
+        
+        // Update window list
+        updateWindowList()
+    }
+    
+    /// Handle space changed notification
+    private func handleSpaceChanged(_ notification: Notification) {
+        // Notify delegate
+        let event = WindowEvent(type: .spaceChanged)
+        delegate?.handleWindowEvent(event)
+        
+        // Update window list to catch windows in the new space
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.updateWindowList()
+        }
+    }
+}
+
+// MARK: - AXObserver Callback
 
 /// Callback function for accessibility notifications
-func observerCallback(
+func windowEventCallback(
     observer: AXObserver,
     element: AXUIElement,
     notification: CFString,
     userData: UnsafeMutableRawPointer?
 ) {
-    // Get the window ID from the element
-    var windowId: CGWindowID = 0
-    let result = _AXUIElementGetWindow(element, &windowId)
+    guard let userData = userData else { return }
     
-    guard result == .success else {
+    // Extract window ID from context
+    let windowId = userData.load(as: CGWindowID.self)
+    
+    // Determine event type
+    let eventType: WindowEventType
+    switch notification as String {
+    case kAXMovedNotification:
+        eventType = .moved
+    case kAXResizedNotification:
+        eventType = .resized
+    case kAXTitleChangedNotification:
+        eventType = .titleChanged
+    case kAXUIElementDestroyedNotification:
+        eventType = .closed
+    default:
         return
     }
     
-    // Handle different notification types
-    let notificationString = notification as String
-    
-    // Post a notification to handle this event on the main thread
+    // Post to main thread for handling
     DispatchQueue.main.async {
         NotificationCenter.default.post(
-            name: Notification.Name("WindowEvent"),
+            name: NSNotification.Name("YukiWindowEvent"),
             object: nil,
             userInfo: [
-                "windowId": Int(windowId),
-                "eventType": notificationString
+                "windowId": windowId,
+                "eventType": eventType.rawValue
             ]
         )
     }
 }
 
-// MARK: - WindowManager Extension
+// MARK: - Extension for WindowManager
 
-extension WindowManager {
-    /// Set up window observation
+extension WindowManager: WindowObserverDelegate {
+    /// Initialize window observation
     func setupWindowObservation() {
-        // Create the observer
-        let observer = WindowObserver(windowManager: self)
+        // Create observer with self as delegate
+        let windowObserver = WindowObserver(delegate: self)
         
-        // Store it using associated objects
+        // Store using associated objects
         objc_setAssociatedObject(
             self,
             &WindowObserverKey,
-            observer,
+            windowObserver,
             .OBJC_ASSOCIATION_RETAIN_NONATOMIC
         )
         
-        // Listen for window events
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleWindowEvent),
-            name: Notification.Name("WindowEvent"),
-            object: nil
-        )
+        // Start observing
+        windowObserver.startObserving()
     }
     
-    /// Handle a window event notification
-    @objc private func handleWindowEvent(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let windowId = userInfo["windowId"] as? Int,
-              let eventType = userInfo["eventType"] as? String
-        else { return }
-        
-        // Handle the event based on type
-        switch eventType {
-        case kAXMovedNotification:
-            handleWindowMoved(windowId: windowId)
+    /// Handle window events from observer
+    func handleWindowEvent(_ event: WindowEvent) {
+        switch event.type {
+        case .created:
+            if let windowId = event.windowId, let windowInfo = event.windowInfo {
+                handleNewWindow(windowId: Int(windowId), windowInfo: windowInfo)
+            }
             
-        case kAXResizedNotification:
-            handleWindowResized(windowId: windowId)
+        case .closed:
+            if let windowId = event.windowId {
+                handleWindowClosed(windowId: Int(windowId))
+            }
             
-        case kAXUIElementDestroyedNotification:
-            handleWindowClosed(windowId: windowId)
+        case .moved, .resized:
+            // Only apply tiling if we're not in float mode
+            if TilingEngine.shared.currentMode != .float {
+                if let windowId = event.windowId {
+                    // Don't reapply tiling immediately for better performance
+                    debounceApplyTiling()
+                }
+            }
+            
+        case .appActivated, .appTerminated, .spaceChanged:
+            // Refresh windows for major system events
+            refreshWindows()
             
         default:
             break
         }
     }
     
-    /// Handle window moved event
-    func handleWindowMoved(windowId: Int) {
-        // Apply tiling if auto-tiling is enabled and not in float mode
-        if TilingManager.shared.getCurrentMode() != .float {
-            applyCurrentTiling()
+    /// Handle a new window being detected
+    private func handleNewWindow(windowId: Int, windowInfo: [String: Any]) {
+        guard let pid = windowInfo["kCGWindowOwnerPID"] as? pid_t,
+              let bounds = windowInfo["kCGWindowBounds"] as? [String: Any],
+              let x = bounds["X"] as? CGFloat,
+              let y = bounds["Y"] as? CGFloat else {
+            return
+        }
+        
+        // Skip windows that are already assigned
+        if windowOwnership[windowId] != nil {
+            return
+        }
+        
+        // Find which monitor contains this window
+        let windowPosition = NSPoint(x: x, y: y)
+        let targetMonitor = monitorContaining(point: windowPosition) ?? monitors.first
+        
+        // Get the active workspace for this monitor
+        guard let targetMonitor = targetMonitor,
+              let targetWorkspace = targetMonitor.activeWorkspace ?? targetMonitor.workspaces.first else {
+            return
+        }
+        
+        // Get the underlying AXUIElement for this window
+        if let window = AccessibilityService.shared.getWindowElement(for: CGWindowID(windowId)) {
+            assignWindowToWorkspace(
+                window: window,
+                windowId: windowId,
+                title: windowInfo["kCGWindowName"] as? String,
+                workspace: targetWorkspace
+            )
         }
     }
     
-    /// Handle window resized event
-    func handleWindowResized(windowId: Int) {
-        // Apply tiling if auto-tiling is enabled and not in float mode
-        if TilingManager.shared.getCurrentMode() != .float {
-            applyCurrentTiling()
+    /// Assign a window to a workspace
+    private func assignWindowToWorkspace(window: AXUIElement, windowId: Int, title: String?, workspace: Workspace) {
+        // Create a window node
+        let windowNode = WindowNode(window: window, systemWindowID: windowId, title: title)
+        
+        // Disable enhanced user interface for better tiling
+        AccessibilityService.shared.disableEnhancedUserInterface(for: window)
+        
+        // Add to workspace
+        workspace.addWindowToDefaultContainer(windowNode)
+        
+        // Register ownership
+        windowOwnership[windowId] = workspace.id
+        
+        // Apply tiling if needed
+                    if TilingEngine.shared.currentMode != .float {
+            debounceApplyTiling()
         }
     }
     
@@ -432,50 +512,37 @@ extension WindowManager {
             // Remove from ownership map
             windowOwnership.removeValue(forKey: windowId)
             
-            print("Stopped tracking window \(windowId)")
-            
             // Apply tiling to reposition remaining windows
-            if TilingManager.shared.getCurrentMode() != .float {
-                if let monitor = workspace.monitor {
-                    TilingManager.shared.applyTiling(to: workspace, on: monitor)
-                }
+            if TilingEngine.shared.currentMode != .float {
+                debounceApplyTiling()
             }
         }
     }
     
-    /// Check for new windows or closed windows
-    func checkForWindowChanges() {
-        // Get the current window list
-        let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionOnScreenOnly)
-        guard let windowList = CGWindowListCopyWindowInfo(options, CGWindowID(0)) as? [[String: Any]] else {
-            return
+    /// Apply tiling with debouncing to avoid excessive operations
+    private func debounceApplyTiling() {
+        // Use a static work item that's shared across the app
+        DispatchQueue.tilingWorkItem?.cancel()
+        
+        // Create new work item
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.applyCurrentTiling()
         }
         
-        let visibleWindows = windowList.filter { ($0["kCGWindowLayer"] as? Int) == 0 }
+        // Store for later cancellation
+        DispatchQueue.tilingWorkItem = workItem
         
-        // Check for new windows
-        for windowInfo in visibleWindows {
-            if let windowId = windowInfo["kCGWindowNumber"] as? Int,
-               windowOwnership[windowId] == nil {
-                // New untracked window found, refresh to add it
-                refreshWindows()
-                break
-            }
-        }
-        
-        // Check for closed windows that we're still tracking
-        let currentWindowIds = Set(visibleWindows.compactMap { $0["kCGWindowNumber"] as? Int })
-        let trackedWindowIds = Set(windowOwnership.keys)
-        
-        // Find windows we're tracking that no longer exist
-        let closedWindowIds = trackedWindowIds.subtracting(currentWindowIds)
-        
-        // Handle each closed window
-        for windowId in closedWindowIds {
-            handleWindowClosed(windowId: windowId)
-        }
+        // Schedule after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 }
 
-// Associated object key
+// Associated object key for the WindowObserver
 private var WindowObserverKey: UInt8 = 0
+
+// MARK: - DispatchQueue Extension for Debouncing
+
+extension DispatchQueue {
+    // Static property for tiling work item
+    static var tilingWorkItem: DispatchWorkItem? = nil
+}
