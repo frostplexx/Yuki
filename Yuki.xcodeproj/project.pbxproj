@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		6519DD422D76FFFE00645F7A /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 6519DD412D76FFFE00645F7A /* Defaults */; };
 		6519DD442D76FFFE00645F7A /* DefaultsMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 6519DD432D76FFFE00645F7A /* DefaultsMacros */; };
+		65CF0F4B2D784C080003EDA1 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 65CF0F4A2D784C080003EDA1 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 		6519DD0A2D76F85000645F7A /* Yuki.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Yuki.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6519DD1B2D76F85200645F7A /* YukiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YukiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6519DD252D76F85200645F7A /* YukiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YukiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		65CF0F4A2D784C080003EDA1 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -95,6 +97,7 @@
 		6519DD012D76F85000645F7A = {
 			isa = PBXGroup;
 			children = (
+				65CF0F4A2D784C080003EDA1 /* README.md */,
 				6519DD0C2D76F85000645F7A /* Yuki */,
 				6519DD1E2D76F85200645F7A /* YukiTests */,
 				6519DD282D76F85200645F7A /* YukiUITests */,
@@ -238,6 +241,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				65CF0F4B2D784C080003EDA1 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -427,6 +431,8 @@
 				DEVELOPMENT_TEAM = TCHY3UX6JP;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Yuki/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -442,6 +448,11 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+				WARNING_CFLAGS = (
+					"-Weverything",
+					"-Wextra",
+					"-Wall",
+				);
 			};
 			name = Debug;
 		};
@@ -459,6 +470,8 @@
 				DEVELOPMENT_TEAM = TCHY3UX6JP;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Yuki/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -473,6 +486,11 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				WARNING_CFLAGS = (
+					"-Weverything",
+					"-Wextra",
+					"-Wall",
+				);
 			};
 			name = Release;
 		};

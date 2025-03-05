@@ -161,7 +161,7 @@ extension Monitor {
     /// Disables enhanced user interface for a window
     /// - Parameter window: The window to modify
     private func disableEnhancedUserInterfaceForWindow(_ window: AXUIElement) {
-        let app = AXUIElementCreateApplication(window.pid())
+//        let app = AXUIElementCreateApplication(window.pid())
         window.set(Ax.enhancedUserInterfaceAttr, false)
     }
     
@@ -171,7 +171,7 @@ extension Monitor {
     /// This prevents incorrect window resizing (related to issue #285)
     private func disableEnhancedUserInterface(for workspace: Workspace) {
         for windowNode in workspace.root.getAllWindowNodes() {
-            disableAnimations(for: windowNode) {
+            _ = disableAnimations(for: windowNode) {
                 windowNode.window.set(Ax.enhancedUserInterfaceAttr, false)
             }
         }

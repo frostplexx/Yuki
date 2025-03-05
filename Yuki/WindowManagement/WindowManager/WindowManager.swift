@@ -23,19 +23,23 @@ class WindowManager: ObservableObject {
     @Published var workspaces: [Workspace] = []
     
     /// Maps window IDs to workspace IDs for tracking ownership
-    @Published private var windowOwnership: [Int: UUID] = [:]
+    @Published var windowOwnership: [Int: UUID] = [:]
     
     // MARK: - Initialization
     
     init() {
-        // Detect monitors first
-        detectMonitors()
+        // Detect monitors (if not already done)
+        if monitors.isEmpty {
+            detectMonitors()
+        }
         
-        // Try to load workspaces from disk
-        do {
-            try loadWorkspacesFromDisk()
-        } catch {
-            initDefaultWorkspaces()
+        // Initialize workspaces (if not already done)
+        if workspaces.isEmpty {
+            do {
+                try loadWorkspacesFromDisk()
+            } catch {
+                initDefaultWorkspaces()
+            }
         }
         
         // Initialize tiling
@@ -43,6 +47,9 @@ class WindowManager: ObservableObject {
         
         // Initialize auto-tiling
         initializeAutoTiling()
+        
+        // Initialize window tracking
+        initializeWindowTracking()
         
         // Initial refresh of windows
         refreshWindows()

@@ -164,11 +164,5 @@ extension WindowManager {
         // Then refresh windows
         refreshWindows()
         
-        // Finally apply BSP tiling to all workspaces
-        for monitor in monitors {
-            for workspace in monitor.workspaces {
-//                monitor.applyBSPTiling(to: workspace)
-            }
-        }
     }
 }
