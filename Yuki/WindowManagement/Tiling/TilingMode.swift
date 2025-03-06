@@ -12,12 +12,12 @@ enum TilingMode: String, CaseIterable {
     /// Binary Space Partitioning - recursive splitting of space
     case bsp
     
-    /// Stack layout - windows are stacked on top of each other
-    case stack
-    
     /// Floating layout - windows are not automatically tiled
     case float
     
+    /// Stack layout - windows are stacked on top of each other
+    case stack
+
     /// Default tiling mode
     static var `default`: TilingMode { .bsp }
     

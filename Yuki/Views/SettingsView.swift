@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var windowManager: WindowManager
     @State private var showingPermissionView = false
     
     var body: some View {

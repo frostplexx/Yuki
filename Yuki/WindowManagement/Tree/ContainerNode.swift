@@ -22,8 +22,8 @@ class ContainerNode: Node {
     /// Whether to distribute child elements evenly
     var distributeEvenly: Bool = true
 
-    init(type: NodeType = .hStack, id: UUID = UUID(), title: String? = nil) {
-        self.type = type
+    init(id: UUID = UUID(), title: String? = nil) {
+        self.type = .container
         self.id = id
         self.title = title
     }

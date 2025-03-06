@@ -53,7 +53,7 @@ struct WorkspaceCreationView: View {
     
     private func createWorkspace() {
         if !workspaceName.isEmpty {
-            windowManager.createNewWorkspace(name: workspaceName)
+//            windowManager.createNewWorkspace(name: workspaceName)
             isShowing = false
             workspaceName = ""
         }

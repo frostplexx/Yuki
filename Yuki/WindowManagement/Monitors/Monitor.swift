@@ -25,11 +25,14 @@ class Monitor: Identifiable, ObservableObject {
     let name: String
     
     /// Workspaces available on this monitor
-    @Published var workspaces: [Workspace] = []
+    @Published var workspaces: [WorkspaceNode] = []
     
     /// Currently active workspace on this monitor
-    @Published var activeWorkspace: Workspace?
+    @Published var activeWorkspace: WorkspaceNode?
     
+    
+    private let tilingEngine: TilingEngine = TilingEngine()
+
     /// Whether this monitor contains the mouse pointer
     var hasMousePointer: Bool {
         let mouseLocation = NSEvent.mouseLocation
@@ -93,6 +96,53 @@ class Monitor: Identifiable, ObservableObject {
         self.frame = frame
         self.visibleFrame = visibleFrame
         self.name = name
+        initDefaultWorkspaces()
+        
+        
+        // Adopt all windows
+//        for windowInfo in visibleWindows {
+//            guard let windowId = windowInfo["kCGWindowNumber"] as? Int,
+//                  let ownerPID = windowInfo["kCGWindowOwnerPID"] as? Int32,
+//                  let bounds = windowInfo["kCGWindowBounds"] as? [String: Any],
+//                  let x = bounds["X"] as? CGFloat,
+//                  let y = bounds["Y"] as? CGFloat
+//            else { continue }
+            
+            // Skip windows that are already assigned
+//            if WindowManager.shared.windowOwnership[windowId] != nil {
+//                continue
+//            }
+            
+            // Find which monitor contains this window
+//            let windowPosition = NSPoint(x: x, y: y)
+//            let targetMonitor = self.contains(
+//                point: windowPosition
+//            )
+            
+            // Get the active workspace for this monitor
+//            guard let targetMonitor = targetMonitor,
+//                  let targetWorkspace = targetMonitor.activeWorkspace ?? targetMonitor.workspaces.first
+//            else { continue }
+            
+            // Try to get the window element
+//            if let window = WindowManager.shared.getWindowElement(
+//                for: CGWindowID(windowId)
+//            ) {
+                // Create a window node
+//                let windowNode = WindowNode(window)
+                
+//                workspaces.first!.adoptWindow(window)
+                
+                // Add to workspace's default container
+//                targetWorkspace.addWindowToDefaultContainer(windowNode)
+                
+                // Register ownership
+//                windowOwnership[windowId] = targetWorkspace.id
+                
+                // Disable enhanced user interface for better tiling
+//                accessibilityService.disableEnhancedUserInterface(for: window)
+//            }
+//        }
     }
     
     // MARK: - Workspace Management
@@ -100,46 +150,47 @@ class Monitor: Identifiable, ObservableObject {
     /// Creates a new workspace on this monitor
     /// - Parameter name: The name for the new workspace
     /// - Returns: The newly created workspace
-    func createWorkspace(name: String) -> Workspace {
-        let workspace = Workspace(id: UUID(), name: name)
-        workspace.monitor = self
-        workspaces.append(workspace)
-        
-        // If this is the first workspace, make it active
-        if activeWorkspace == nil {
-            activeWorkspace = workspace
-        }
-        
-        return workspace
-    }
+//    func createWorkspace(name: String) -> Workspace {
+//        let workspace = Workspace(id: UUID(), name: name)
+//        workspace.monitor = self
+//        workspaces.append(workspace)
+//        
+//        // If this is the first workspace, make it active
+//        if activeWorkspace == nil {
+//            activeWorkspace = workspace
+//        }
+//        
+//        return workspace
+//    }
     
     /// Removes a workspace from this monitor
     /// - Parameter workspace: The workspace to remove
     /// - Returns: True if removal was successful
-    @discardableResult
-    func removeWorkspace(_ workspace: Workspace) -> Bool {
-        guard let index = workspaces.firstIndex(where: { $0.id == workspace.id }) else {
-            return false
-        }
-        
-        // If removing active workspace, set a new active one
-        if activeWorkspace?.id == workspace.id {
-            if workspaces.count > 1 {
-                // Select previous or next workspace
-                let newIndex = index > 0 ? index - 1 : (index + 1 < workspaces.count ? index + 1 : nil)
-                if let newIndex = newIndex {
-                    activeWorkspace = workspaces[newIndex]
-                } else {
-                    activeWorkspace = nil
-                }
-            } else {
-                activeWorkspace = nil
-            }
-        }
-        
-        workspaces.remove(at: index)
-        return true
-    }
+//    @discardableResult
+//    func removeWorkspace(_ workspace: Workspace) -> Bool {
+//        guard let index = workspaces.firstIndex(where: { $0.id == workspace.id }) else {
+//            return false
+//        }
+//        
+//        // If removing active workspace, set a new active one
+//        if activeWorkspace?.id == workspace.id {
+//            if workspaces.count > 1 {
+//                // Select previous or next workspace
+//                let newIndex = index > 0 ? index - 1 : (index + 1 < workspaces.count ? index + 1 : nil)
+//                if let newIndex = newIndex {
+//                    activeWorkspace = workspaces[newIndex]
+//                } else {
+//                    activeWorkspace = nil
+//                }
+//            } else {
+//                activeWorkspace = nil
+//            }
+//        }
+//        
+//        workspaces.remove(at: index)
+//        return true
+//    }
+    
     
     
 

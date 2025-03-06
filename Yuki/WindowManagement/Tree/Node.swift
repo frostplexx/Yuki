@@ -12,12 +12,12 @@ import Foundation
 // MARK: - Node Types
 
 /// Types of nodes in the window tree
+/// Types of nodes in the window tree
 enum NodeType {
     case rootNode
+    case workspace
+    case container
     case window
-    case vStack
-    case hStack
-    case zStack
 }
 
 // MARK: - Node Protocol

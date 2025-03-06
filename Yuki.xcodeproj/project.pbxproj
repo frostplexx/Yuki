@@ -41,16 +41,34 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				WindowManagement/Accessibility/AccessibilityService.old,
+				WindowManagement/Tiling/TilingEngine.old,
+				WindowManagement/WindowManager/WindowManager.old,
+				WindowManagement/Workspaces/Workspace.old,
 			);
 			target = 6519DD092D76F85000645F7A /* Yuki */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		65C260B02D788FC600382BBB /* Exceptions for "Yuki" folder in "Compile Sources" phase from "Yuki" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 6519DD062D76F85000645F7A /* Sources */;
+			membershipExceptions = (
+				WindowManagement/Accessibility/AccessibilityService.old,
+				WindowManagement/Tiling/TilingEngine.old,
+				WindowManagement/WindowManager/WindowManager.old,
+				WindowManagement/Workspaces/Workspace.old,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6519DD0C2D76F85000645F7A /* Yuki */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				6519DD4E2D77051E00645F7A /* Exceptions for "Yuki" folder in "Yuki" target */,
+				65C260B02D788FC600382BBB /* Exceptions for "Yuki" folder in "Compile Sources" phase from "Yuki" target */,
 			);
 			path = Yuki;
 			sourceTree = "<group>";

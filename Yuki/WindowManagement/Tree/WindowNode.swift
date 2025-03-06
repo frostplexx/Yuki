@@ -22,10 +22,9 @@ class WindowNode: Node {
     let window: AXUIElement
     
     /// The system window ID from CGWindowID (optional)
-    var systemWindowID: Int?
+    var systemWindowID: String?
     
     /// Accessibility service for operations
-    private let accessibilityService = AccessibilityService.shared
     
     // MARK: - Initialization
     
@@ -33,34 +32,21 @@ class WindowNode: Node {
     init(_ window: AXUIElement) {
         self.id = UUID()
         self.window = window
-        self.title = accessibilityService.getTitle(for: window)
-        self.systemWindowID = accessibilityService.getWindowID(for: window).map { Int($0) }
+        self.title = window.get(Ax.titleAttr)
+        self.systemWindowID = window.get(Ax.identifierAttr)
     }
     
-    /// Initialize with additional metadata
-    init(window: AXUIElement, systemWindowID: Int? = nil, title: String? = nil) {
-        self.id = UUID()
-        self.window = window
-        self.systemWindowID = systemWindowID
-        
-        // Use provided title or try to get it from the window
-        if let title = title {
-            self.title = title
-        } else {
-            self.title = accessibilityService.getTitle(for: window)
-        }
-    }
     
     // MARK: - Window Properties
     
     /// Returns the current position of the window
     var position: NSPoint? {
-        return accessibilityService.getPosition(for: window)
+        return window.get(Ax.topLeftCornerAttr)
     }
     
     /// Returns the current size of the window
     var size: NSSize? {
-        return accessibilityService.getSize(for: window)
+        return window.get(Ax.sizeAttr)
     }
     
     /// Returns the current frame of the window
@@ -71,12 +57,13 @@ class WindowNode: Node {
     
     /// Whether the window is minimized
     var isMinimized: Bool {
-        return accessibilityService.isMinimized(for: window)
+        return window.get(Ax.minimizedAttr) ?? false
     }
     
     /// Whether the window is in fullscreen mode
     var isFullscreen: Bool {
-        return accessibilityService.isFullscreen(for: window)
+        return window.get(Ax.isFullscreenAttr) ?? false
+        
     }
     
     // MARK: - Window Operations
@@ -84,50 +71,87 @@ class WindowNode: Node {
     /// Moves the window to a new position
     /// - Parameter point: The new position
     func move(to point: NSPoint) {
-        accessibilityService.setPosition(point, for: window)
+        window.set(Ax.topLeftCornerAttr, point)
     }
     
     /// Resizes the window
     /// - Parameter newSize: The new size
     func resize(to newSize: CGSize) {
-        accessibilityService.setSize(newSize, for: window)
+        window.set(Ax.sizeAttr, newSize)
     }
     
     /// Sets both the position and size at once
-    /// - Parameters:
-    ///   - rect: The new frame
-    ///   - animated: Whether to animate the change
-    func setFrame(_ rect: NSRect, animated: Bool = false) {
-        accessibilityService.setFrame(rect, for: window, animated: animated)
+    func setFrame(_ rect: NSRect) {
+        // Perform without animation by temporarily disabling enhanced user interface
+        withEnhancedUserInterfaceDisabled() {
+            resize(to: rect.size)
+            move(to: rect.origin)
+        }
     }
     
     /// Brings the window to the front
     func focus() {
-        accessibilityService.raiseWindow(window)
     }
     
     /// Toggles window minimized state
     func toggleMinimize() {
-        accessibilityService.toggleMinimize(for: window)
+        let minimized = window.get(Ax.minimizedAttr) ?? false
+        window.set(Ax.minimizedAttr, !minimized)
     }
     
     /// Toggles window fullscreen state
     func toggleFullscreen() {
-        accessibilityService.toggleFullscreen(for: window)
+        let fullscreen = window.get(Ax.isFullscreenAttr) ?? false
+        window.set(Ax.isFullscreenAttr, fullscreen)
     }
     
     /// Disables the AXEnhancedUserInterface setting for this window
     func disableEnhancedUserInterface() {
-        accessibilityService.disableEnhancedUserInterface(for: window)
+        let app = AXUIElementCreateApplication(getPID(for: window))
+        AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, false as CFTypeRef)
     }
     
     /// Enables the AXEnhancedUserInterface setting for this window
     func enableEnhancedUserInterface() {
-        accessibilityService.enableEnhancedUserInterface(for: window)
+        let app = AXUIElementCreateApplication(getPID(for: window))
+        AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, true as CFTypeRef)
     }
     
     /// Perform an operation with enhanced user interface temporarily disabled
     func withEnhancedUserInterfaceDisabled<T>(_ operation: () -> T) -> T {
-        return accessibilityService.withEnhancedUserInterfaceDisabled(for: window, operation)
+        let wasEnabled = isEnhancedUserInterfaceEnabled(for: window) == true
+        
+        if wasEnabled {
+            disableEnhancedUserInterface()
+        }
+        
+        let result = operation()
+        
+        if wasEnabled {
+            enableEnhancedUserInterface()
+        }
+        
+        return result
+    }
+    
+    /// Check if enhanced user interface is enabled for a window's application
+    private func isEnhancedUserInterfaceEnabled(for window: AXUIElement) -> Bool? {
+        let app = AXUIElementCreateApplication(getPID(for: window))
+        
+        var valueRef: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(app, "AXEnhancedUserInterface" as CFString, &valueRef)
+        
+        guard result == .success, let value = valueRef as? Bool else {
+            return nil
+        }
+        
+        return value
+    }
+    
+    
+    private func getPID(for element: AXUIElement) -> pid_t {
+        var pid: pid_t = 0
+        let error = AXUIElementGetPid(element, &pid)
+        return error == .success ? pid : 0
     }
 }
