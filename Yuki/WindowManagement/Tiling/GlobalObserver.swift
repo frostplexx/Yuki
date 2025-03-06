@@ -26,6 +26,11 @@ class GlobalObserver {
            let launchedApp = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
             registerForWindowCreationNotifications(for: launchedApp.processIdentifier)
         }
+        // For application activation (dock or cmd+tab), switch to the appropriate workspace
+        else if notification.name == NSWorkspace.didActivateApplicationNotification,
+                let activatedApp = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+            handleAppActivation(activatedApp)
+        }
         // For other notifications, refresh the window list
         else {
             WindowManager.shared.refreshWindowsList()
@@ -37,6 +42,49 @@ class GlobalObserver {
         if let hiddenApp = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
             WindowManager.shared.removeWindowsForApp(hiddenApp.processIdentifier)
         }
+    }
+    
+    //TODO: Move some of this to a separate file or something
+    
+    // Handle application activation (dock click, cmd+tab, etc.)
+    private static func handleAppActivation(_ app: NSRunningApplication) {
+        let pid = app.processIdentifier
+        
+        // Try to find a workspace containing a window from this app
+        let workspaces = findWorkspacesContainingApp(pid)
+        if let targetWorkspace = workspaces.first {
+            // Only switch workspaces if needed
+            if targetWorkspace.monitor.activeWorkspace?.id != targetWorkspace.id {
+                print("App activation detected (\(app.localizedName ?? "Unknown")), activating workspace: \(targetWorkspace.title ?? "Unknown")")
+                DispatchQueue.main.async {
+                    targetWorkspace.activate()
+                }
+            }
+        }
+        
+        // Always refresh window list to ensure proper window state
+        WindowManager.shared.refreshWindowsList()
+    }
+    
+    // Find all workspaces that contain windows from the given application
+    private static func findWorkspacesContainingApp(_ pid: pid_t) -> [WorkspaceNode] {
+        var result: [WorkspaceNode] = []
+        
+        for monitor in WindowManager.shared.monitors {
+            for workspace in monitor.workspaces {
+                // Check if this workspace has any windows from this application
+                let windowNodes = workspace.getAllWindowNodes()
+                let hasAppWindow = windowNodes.contains { node in
+                    WindowManager.shared.getPID(for: node.window) == pid
+                }
+                
+                if hasAppWindow {
+                    result.append(workspace)
+                }
+            }
+        }
+        
+        return result
     }
     
     // Register for AX notifications when windows are created in an application
@@ -84,8 +132,58 @@ class GlobalObserver {
                 notification as String == kAXFocusedWindowChangedNotification ||
                 notification as String == kAXApplicationActivatedNotification {
                 WindowManager.shared.discoverAndAssignWindows()
+                
+                // If this is a window creation notification, try to assign it to the right workspace
+                if notification as String == kAXWindowCreatedNotification {
+                    var pid: pid_t = 0
+                    AXUIElementGetPid(element, &pid)
+                    
+                    // If the element is a window, try to find a workspace to add it to
+                    var windowCreated = false
+                    
+                    // Get windows for this app and assign new ones
+                    let windows = WindowManager.shared.windowDiscovery.getWindowsForApplication(pid: pid)
+                    for window in windows {
+                        var windowId: CGWindowID = 0
+                        if _AXUIElementGetWindow(window, &windowId) == .success,
+                           let intId = Int(exactly: windowId),
+                           WindowManager.shared.windowOwnership[intId] == nil {
+                            // This is a new window, try to assign it to the active workspace
+                            if let activeWorkspace = getActiveWorkspaceForApp(pid) {
+                                activeWorkspace.adoptWindow(window)
+                                windowCreated = true
+                            }
+                        }
+                    }
+                    
+                    // If we created a new window, refresh everything
+                    if windowCreated {
+                        WindowManager.shared.refreshWindowsList()
+                    }
+                }
             }
         }
+    }
+    
+    // Get the active workspace that contains a window from the given app
+    private static func getActiveWorkspaceForApp(_ pid: pid_t) -> WorkspaceNode? {
+        // First check currently active workspaces
+        for monitor in WindowManager.shared.monitors {
+            if let workspace = monitor.activeWorkspace {
+                let windowNodes = workspace.getAllWindowNodes()
+                let hasAppWindow = windowNodes.contains { node in
+                    WindowManager.shared.getPID(for: node.window) == pid
+                }
+                
+                if hasAppWindow {
+                    return workspace
+                }
+            }
+        }
+        
+        // If not found in active workspaces, look in all workspaces
+        let workspaces = findWorkspacesContainingApp(pid)
+        return workspaces.first
     }
     
     // Unregister from AX notifications for an application

@@ -10,86 +10,103 @@ import Foundation
 
 /// Root node for a workspace
 class WorkspaceNode: Node {
-
+    
     var type: NodeType { .rootNode }
     var children: [any Node] = []
     var parent: (any Node)? = nil
     let id: UUID = UUID()
     var title: String?
-
+    
     var monitor: Monitor
-
+    
     // Store window elements directly along with their states
     private struct SavedWindowState {
         let window: AXUIElement
         let position: NSPoint
         let size: NSSize
         let title: String?
+        let isFocused: Bool
     }
     
     // Array to store window states
     private var savedWindowStates: [SavedWindowState] = []
-
+    
+    // Use dispatch queues for parallel processing
+    private let processingQueue = DispatchQueue(label: "com.yuki.workspace.processing", attributes: .concurrent)
+    private let stateQueue = DispatchQueue(label: "com.yuki.workspace.state")
+    
+    // Cache window positions for faster restoration
+    private var positionCache: [AXUIElement: NSPoint] = [:]
+    private var sizeCache: [AXUIElement: NSSize] = [:]
+    
+    // Track if the workspace is currently active
+    private var isActive: Bool {
+        return monitor.activeWorkspace?.id == self.id
+    }
+    
     init(title: String? = "Root", monitor: Monitor) {
         self.title = title
         self.monitor = monitor
     }
-
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     /// Finds a window node by system window ID
     /// - Parameter systemWindowID: The system window ID to find
     /// - Returns: The window node if found, nil otherwise
     func findWindowNode(systemWindowID: String) -> WindowNode? {
-        // Check direct children
-        for child in children {
-            if let windowNode = child as? WindowNode,
-                windowNode.systemWindowID == systemWindowID
-            {
+        // Direct check without nested loops for better performance
+        for child in children where child.type == .window {
+            if let windowNode = child as? WindowNode, windowNode.systemWindowID == systemWindowID {
                 return windowNode
             }
         }
-
-        // Check container children
-        for child in children {
+        
+        // Then check containers
+        for child in children where child.type == .container {
             if let container = child as? ContainerNode {
-                for subChild in container.children {
-                    if let windowNode = subChild as? WindowNode,
-                        windowNode.systemWindowID == systemWindowID
-                    {
+                for subChild in container.children where subChild.type == .window {
+                    if let windowNode = subChild as? WindowNode, windowNode.systemWindowID == systemWindowID {
                         return windowNode
                     }
                 }
             }
         }
-
+        
         return nil
     }
-
-    /// Gets all window nodes in the workspace
+    
+    /// Find a window node for a specific application PID - optimized version
+    func findWindowForApp(pid: pid_t) -> WindowNode? {
+        // Get all windows first to avoid multiple calls
+        let allNodes = getAllWindowNodes()
+        return allNodes.first { WindowManager.shared.getPID(for: $0.window) == pid }
+    }
+    
+    /// Gets all window nodes in the workspace - optimized version
     /// - Returns: Array of all window nodes
     func getAllWindowNodes() -> [WindowNode] {
         var result: [WindowNode] = []
-
-        // Check direct children
-        for child in children {
-            if let windowNode = child as? WindowNode {
-                result.append(windowNode)
-            }
+        result.reserveCapacity(children.count) // Pre-allocate for performance
+        
+        // Use filter + compactMap for better performance
+        let directWindows = children.compactMap { $0 as? WindowNode }
+        result.append(contentsOf: directWindows)
+        
+        // Get container nodes
+        let containers = children.compactMap { $0 as? ContainerNode }
+        
+        // Get windows from containers
+        for container in containers {
+            let containerWindows = container.children.compactMap { $0 as? WindowNode }
+            result.append(contentsOf: containerWindows)
         }
-
-        // Check container children
-        for child in children {
-            if let container = child as? ContainerNode {
-                for subChild in container.children {
-                    if let windowNode = subChild as? WindowNode {
-                        result.append(windowNode)
-                    }
-                }
-            }
-        }
-
+        
         return result
     }
-
+    
     /// Override adoptWindow to include ownership tracking and avoid duplicates
     func adoptWindow(_ window: AXUIElement) {
         // Get the window ID
@@ -98,174 +115,274 @@ class WorkspaceNode: Node {
             print("Failed to get window ID during adoption")
             return
         }
-
+        
         // Check if window is already owned by a workspace
         if let intId = Int(exactly: windowId),
-            WindowManager.shared.windowOwnership[intId] == nil
-        {
+           WindowManager.shared.windowOwnership[intId] == nil {
             // Create a window node
             let windowNode = WindowNode(window)
-
+            
             // Add to ownership if not already tracked
             WindowManager.shared.windowOwnership[intId] = self.id
-
+            
             // Add as a child
             self.children.append(windowNode)
-
-            // Only move if the workspace is not active
-            if monitor.activeWorkspace?.id != self.id {
-                windowNode.move(
-                    to: .init(
-                        x: self.monitor.frame.maxX - 1.125,
-                        y: self.monitor.frame.maxY - 1.125))
+            
+            // Cache window position and size in a thread-safe way
+            stateQueue.async {
+                if let position = windowNode.position {
+                    self.positionCache[window] = position
+                }
+                
+                if let size = windowNode.size {
+                    self.sizeCache[window] = size
+                }
             }
-        } else {
-            print("Window \(windowId) is already owned by another workspace")
+            
+            // Only move if the workspace is not active
+            if !isActive {
+                // Move off-screen immediately using GCD for performance
+                processingQueue.async {
+                    let offscreenPosition = NSPoint(x: self.monitor.frame.maxX - 1.125, y: self.monitor.frame.maxY - 1.125)
+                    var cgPosition = CGPoint(x: offscreenPosition.x, y: offscreenPosition.y)
+                    
+                    if let positionValue = AXValueCreate(.cgPoint, &cgPosition) {
+                        DispatchQueue.main.async {
+                            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
+                        }
+                    }
+                }
+            }
         }
     }
     
     func removeWindow(_ window: AXUIElement) {
-        guard let windowNode = self.children.first(
-            where: {
-                $0.type == .window && ($0 as? WindowNode)?.window == window
-            }) as? WindowNode else {
-            print("Window not found in workspace")
-            return
-        }
-
-        guard let windowID = windowNode.systemWindowID else {
-            print("Window ID not available")
-            return
-        }
-        
-        // Remove window from children list - fixing the implementation
-        children.removeAll { node in
-            if let node = node as? WindowNode {
-                return node.window == window
+        // Thread-safe removal using a dispatch queue
+        stateQueue.async {
+            // Get the window node and ID
+            if let index = self.children.firstIndex(where: {
+                guard let windowNode = $0 as? WindowNode else { return false }
+                return windowNode.window == window
+            }) {
+                // Get window ID before removing
+                if let windowNode = self.children[index] as? WindowNode,
+                   let windowID = windowNode.systemWindowID,
+                   let intID = Int(windowID) {
+                    // Remove from ownership tracking
+                    WindowManager.shared.windowOwnership.removeValue(forKey: intID)
+                }
+                
+                // Remove from caches
+                self.positionCache.removeValue(forKey: window)
+                self.sizeCache.removeValue(forKey: window)
+                
+                // Remove from children - must be on main thread as it affects UI
+                DispatchQueue.main.async {
+                    self.children.remove(at: index)
+                }
             }
-            return false
-        }
-
-        // Remove from ownership tracking
-        if let intID = Int(windowID) {
-            WindowManager.shared.windowOwnership.removeValue(forKey: intID)
         }
     }
-
+    
     func activate() {
-        print("Activating workspace: \(self.title ?? "Unknown")")
+        if monitor.activeWorkspace == self { return }
         
         // Deactivate previous workspace if different
         if let currentWorkspace = monitor.activeWorkspace, currentWorkspace.id != self.id {
             currentWorkspace.deactivate()
         }
         
-        // Set as active workspace
+        // Set as active workspace immediately
         monitor.activeWorkspace = self
         
-        // Restore window positions
-        restoreWindowStates()
-        
-        print("Activated \(self.title ?? "Unknown")")
+        // Use a multithreaded restore method
+        parallelRestoreWindowStates()
     }
-
+    
     func deactivate() {
-        print("Deactivating workspace: \(self.title ?? "Unknown")")
-        
-        // Save window states
-        let windows = self.getAllWindowNodes()
-        
-        // Clear previous saved states
-        savedWindowStates.removeAll()
-        
-        // Store window states before hiding
-        for window in windows {
-            if saveWindowState(window) {
-                // Move windows off-screen
-                window.move(
-                    to: .init(
-                        x: self.monitor.frame.maxX - 1.125,
-                        y: self.monitor.frame.maxY - 1.125))
-            } else {
-                print("Error saving window state for \(window.title ?? "Unknown")")
-            }
-        }
+        // Fast save and hide using parallel processing
+        parallelSaveAndHideWindows()
     }
-
-    func saveWindowState(_ window: WindowNode) -> Bool {
-        guard let position = window.position else {
-            print("Error getting position for \(window.title ?? "Unknown")")
-            return false
+    
+    // Fast save window state with minimal overhead
+    func saveWindowState(_ window: WindowNode, isFocused: Bool = false) -> Bool {
+        var positionResult: NSPoint?
+        var sizeResult: NSSize?
+        
+        // Fetch position and size in a thread-safe manner
+        stateQueue.sync {
+            positionResult = self.positionCache[window.window] ?? window.position
+            sizeResult = self.sizeCache[window.window] ?? window.size
         }
         
-        guard let size = window.size else {
-            print("Error getting size for \(window.title ?? "Unknown")")
-            return false
+        guard let position = positionResult, let size = sizeResult else { return false }
+        
+        // Update cache thread-safely
+        stateQueue.async {
+            self.positionCache[window.window] = position
+            self.sizeCache[window.window] = size
+            
+            // Store window state
+            self.savedWindowStates.append(SavedWindowState(
+                window: window.window,
+                position: position,
+                size: size,
+                title: window.title,
+                isFocused: isFocused
+            ))
         }
         
-        let title = window.title
-        
-        // Store the window element directly with its state
-        savedWindowStates.append(SavedWindowState(
-            window: window.window,
-            position: position,
-            size: size,
-            title: title
-        ))
-        
-        print("Saved state for window \(title ?? "Unknown"): position=\(position), size=\(size)")
         return true
     }
-
-    // Restore the state of all windows in the workspace
-    // Restore the state of all windows in the workspace
-    private func restoreWindowStates() {
-        print("Restoring \(savedWindowStates.count) window states")
+    
+    // Parallel save and hide all windows
+    private func parallelSaveAndHideWindows() {
+        // Get all windows once
+        let windows = getAllWindowNodes()
         
-        // First, process all windows that are already in this workspace
-        let currentWindows = getAllWindowNodes()
-        
-        // Create a mapping of AXUIElements to WindowNodes
-        var windowNodeMap: [AXUIElement: WindowNode] = [:]
-        for node in currentWindows {
-            windowNodeMap[node.window] = node
+        // Clear states in a thread-safe way
+        stateQueue.async {
+            self.savedWindowStates.removeAll(keepingCapacity: true)
         }
         
-        for savedState in savedWindowStates {
-            // Check if the saved window is in this workspace
-            if let windowNode = windowNodeMap[savedState.window] {
-                // Restore position and size using the WindowNode
-                windowNode.resize(to: savedState.size)
-                windowNode.move(to: savedState.position)
-                print("Restored window \(savedState.title ?? "Unknown") to position=\(savedState.position), size=\(savedState.size)")
-            } else {
-                // Window not in this workspace, try to set position directly using AX API
-                var cgPosition = CGPoint(x: savedState.position.x, y: savedState.position.y)
-                var cgSize = CGSize(width: savedState.size.width, height: savedState.size.height)
+        // Get focused app PID
+        let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+        
+        // Prepare the offscreen position once
+        let offscreenPosition = NSPoint(x: self.monitor.frame.maxX - 1.125, y: self.monitor.frame.maxY - 1.125)
+        var cgPosition = CGPoint(x: offscreenPosition.x, y: offscreenPosition.y)
+        let positionValue = AXValueCreate(.cgPoint, &cgPosition)
+        
+        // Process windows in parallel
+        let group = DispatchGroup()
+        
+        for window in windows {
+            group.enter()
+            
+            processingQueue.async {
+                // Get current position and size
+                let position = window.position ?? offscreenPosition
+                let size = window.size ?? NSSize(width: 800, height: 600)
                 
-                if let positionValue = AXValueCreate(.cgPoint, &cgPosition),
-                   let sizeValue = AXValueCreate(.cgSize, &cgSize) {
+                // Check if focused
+                let windowPID = WindowManager.shared.getPID(for: window.window)
+                let isFocused = windowPID == frontmostPID
+                
+                // Update cache and add to saved states in a thread-safe way
+                self.stateQueue.async {
+                    // Cache for future use
+                    self.positionCache[window.window] = position
+                    self.sizeCache[window.window] = size
                     
-                    AXUIElementSetAttributeValue(savedState.window, kAXPositionAttribute as CFString, positionValue)
-                    AXUIElementSetAttributeValue(savedState.window, kAXSizeAttribute as CFString, sizeValue)
+                    // Store state
+                    self.savedWindowStates.append(SavedWindowState(
+                        window: window.window,
+                        position: position,
+                        size: size,
+                        title: window.title,
+                        isFocused: isFocused
+                    ))
                     
-                    print("Directly restored window \(savedState.title ?? "Unknown") via AX API")
-                } else {
-                    print("Failed to create AX values for window \(savedState.title ?? "Unknown")")
+                    // Move window off-screen - must be on main thread for accessibility
+                    DispatchQueue.main.async {
+                        if let posValue = positionValue {
+                            AXUIElementSetAttributeValue(window.window, kAXPositionAttribute as CFString, posValue)
+                        }
+                        group.leave()
+                    }
                 }
             }
         }
-    }}
-
-// Extension to help with NSPoint and NSSize conversions
-extension NSPoint {
-    var pointee: CGPoint {
-        return CGPoint(x: self.x, y: self.y)
+        
+        // Wait for all windows to be processed (optional, depends on if you need to wait)
+        // This is non-blocking since we're already in an async context
+        group.notify(queue: .main) {
+            print("All windows from \(self.title ?? "Unknown") hidden")
+        }
     }
-}
-
-extension NSSize {
-    var sizeValue: CGSize {
-        return CGSize(width: self.width, height: self.height)
+    
+    // Parallel restoration of window states
+    private func parallelRestoreWindowStates() {
+        // Get saved states in a thread-safe way
+        var statesToRestore: [SavedWindowState] = []
+        
+        stateQueue.sync {
+            statesToRestore = self.savedWindowStates
+        }
+        
+        if statesToRestore.isEmpty { return }
+        
+        // Create a mapping of windows to nodes for quick lookup
+        var nodeMap: [AXUIElement: WindowNode] = [:]
+        let currentWindows = getAllWindowNodes()
+        
+        for node in currentWindows {
+            nodeMap[node.window] = node
+        }
+        
+        // Track focused window
+        var focusedWindow: AXUIElement? = nil
+        
+        // Use a dispatch group to track completion
+        let group = DispatchGroup()
+        
+        // Process windows in parallel batches for better performance
+        let chunkSize = max(1, statesToRestore.count / ProcessInfo.processInfo.activeProcessorCount)
+        let chunks = stride(from: 0, to: statesToRestore.count, by: chunkSize).map {
+            Array(statesToRestore[$0..<min($0 + chunkSize, statesToRestore.count)])
+        }
+        
+        // Process each chunk in parallel
+        for chunk in chunks {
+            group.enter()
+            
+            processingQueue.async {
+                for savedState in chunk {
+                    // Prepare position and size values
+                    var cgPosition = CGPoint(x: savedState.position.x, y: savedState.position.y)
+                    var cgSize = CGSize(width: savedState.size.width, height: savedState.size.height)
+                    
+                    if let positionValue = AXValueCreate(.cgPoint, &cgPosition),
+                       let sizeValue = AXValueCreate(.cgSize, &cgSize) {
+                        
+                        // Apply on main thread since accessibility API requires it
+                        DispatchQueue.main.async {
+                            // Set size first, then position
+                            AXUIElementSetAttributeValue(savedState.window, kAXSizeAttribute as CFString, sizeValue)
+                            AXUIElementSetAttributeValue(savedState.window, kAXPositionAttribute as CFString, positionValue)
+                        }
+                        
+                        // Track focused window
+                        if savedState.isFocused {
+                            self.stateQueue.async {
+                                focusedWindow = savedState.window
+                            }
+                        }
+                    }
+                }
+                group.leave()
+            }
+        }
+        
+        // After all windows are restored, focus the appropriate window
+        group.notify(queue: .main) {
+            // Get the focused window in a thread-safe way
+            self.stateQueue.sync {
+                if let focusedWindow = focusedWindow {
+                    // Get the process ID
+                    var pid: pid_t = 0
+                    AXUIElementGetPid(focusedWindow, &pid)
+                    
+                    // Activate the app
+                    if let app = NSRunningApplication(processIdentifier: pid) {
+                        app.activate(options: .activateIgnoringOtherApps)
+                        
+                        // Focus the window
+                        AXUIElementSetAttributeValue(focusedWindow, kAXMainAttribute as CFString, true as CFTypeRef)
+                        AXUIElementSetAttributeValue(focusedWindow, kAXFocusedAttribute as CFString, true as CFTypeRef)
+                    }
+                }
+            }
+        }
     }
 }
