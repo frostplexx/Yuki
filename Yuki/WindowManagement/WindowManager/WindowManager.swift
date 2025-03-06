@@ -26,6 +26,7 @@ class WindowManager: ObservableObject {
     private init() {
         detectMonitors()
         discoverAndAssignWindows()
+
     }
 
     // MARK: - Monitor Management
@@ -79,7 +80,7 @@ class WindowManager: ObservableObject {
         DispatchQueue.main.async {
             // Get all visible windows using our window discovery service
             let visibleWindows = self.windowDiscovery.getAllVisibleWindows()
-            
+
             for windowInfo in visibleWindows {
                 guard let windowId = windowInfo["kCGWindowNumber"] as? Int,
                     let ownerPID = windowInfo["kCGWindowOwnerPID"] as? Int32,
@@ -117,85 +118,99 @@ class WindowManager: ObservableObject {
             }
 
             // Print debug info after assigning windows
-//            self.printDebugInfo()
+            //            self.printDebugInfo()
         }
     }
-    
+
     // MARK: - Window List Refresh
-    
+
     /// Refresh the windows list - check for closed/hidden windows and remove them
     /// Refresh the windows list - check for closed/hidden windows and remove them
     func refreshWindowsList() {
         DispatchQueue.main.async {
             // Get all currently visible windows
             let visibleWindows = self.windowDiscovery.getAllVisibleWindows()
-            let visibleWindowIds = Set(visibleWindows.compactMap { $0["kCGWindowNumber"] as? Int })
-            
+            let visibleWindowIds = Set(
+                visibleWindows.compactMap { $0["kCGWindowNumber"] as? Int })
+
             // Process each monitor and workspace
             for monitorIndex in 0..<self.monitors.count {
-                for workspaceIndex in 0..<self.monitors[monitorIndex].workspaces.count {
+                for workspaceIndex
+                    in 0..<self.monitors[monitorIndex].workspaces.count
+                {
                     // Get a direct reference to the workspace
-                    var workspace = self.monitors[monitorIndex].workspaces[workspaceIndex]
-                    
+                    var workspace = self.monitors[monitorIndex].workspaces[
+                        workspaceIndex]
+
                     // Get all window nodes in the workspace
                     let windowNodes = workspace.getAllWindowNodes()
-                    
+
                     // Remove windows that are no longer visible
                     for windowNode in windowNodes {
                         // Convert the windowNode's system ID to an integer for comparison
                         if let systemWindowId = windowNode.systemWindowID,
-                           let windowId = Int(systemWindowId),
-                           !visibleWindowIds.contains(windowId) {
-                            
+                            let windowId = Int(systemWindowId),
+                            !visibleWindowIds.contains(windowId)
+                        {
+
                             // Remove from ownership tracking
                             self.windowOwnership.removeValue(forKey: windowId)
-                            
+
                             // Remove from workspace
                             workspace.remove(windowNode)
-                            
-                            print("Removed closed/hidden window \(windowId) from workspace \(workspace.title ?? "Untitled")")
+
+                            print(
+                                "Removed closed/hidden window \(windowId) from workspace \(workspace.title ?? "Untitled")"
+                            )
                         }
                     }
                 }
             }
-            
+
             // Discover and assign any new windows
             self.discoverAndAssignWindows()
         }
     }
-    
+
     /// Remove windows for a specific app from all workspaces
     func removeWindowsForApp(_ pid: pid_t) {
         DispatchQueue.main.async {
             // For each monitor, access its workspaces directly
             for monitorIndex in 0..<self.monitors.count {
-                for workspaceIndex in 0..<self.monitors[monitorIndex].workspaces.count {
+                for workspaceIndex
+                    in 0..<self.monitors[monitorIndex].workspaces.count
+                {
                     // Get a direct reference to the mutable workspace
-                    var workspace = self.monitors[monitorIndex].workspaces[workspaceIndex]
-                    
+                    var workspace = self.monitors[monitorIndex].workspaces[
+                        workspaceIndex]
+
                     // Get all window nodes in the workspace
                     let windowNodes = workspace.getAllWindowNodes()
-                    
+
                     // Find windows belonging to the app
                     for windowNode in windowNodes {
                         if self.getPID(for: windowNode.window) == pid {
                             // Remove from window ownership tracking
-                            if let windowId = Int(windowNode.systemWindowID ?? "-1") {
-                                self.windowOwnership.removeValue(forKey: windowId)
+                            if let windowId = Int(
+                                windowNode.systemWindowID ?? "-1")
+                            {
+                                self.windowOwnership.removeValue(
+                                    forKey: windowId)
                             }
-                            
+
                             // Remove from workspace using direct reference
                             workspace.remove(windowNode)
-                            
-                            print("Removed window for app with PID \(pid) from workspace \(workspace.title ?? "Untitled")")
+
+                            print(
+                                "Removed window for app with PID \(pid) from workspace \(workspace.title ?? "Untitled")"
+                            )
                         }
                     }
                 }
             }
-            
+
             // Update debug info
             self.printDebugInfo()
         }
     }
 }
-
