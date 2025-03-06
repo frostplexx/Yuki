@@ -46,11 +46,12 @@ class WorkspaceNode: Node {
     }
 
     /// Tiling engine for this workspace (lazy initialized)
-    var tilingEngine: TilingEngine = TilingEngine()
+    var tilingEngine: TilingEngine?
 
     init(title: String? = "Root", monitor: Monitor) {
         self.title = title
         self.monitor = monitor
+        tilingEngine = TilingEngine(workspace: self)
         setupObservation()
     }
 

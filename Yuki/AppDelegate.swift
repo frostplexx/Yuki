@@ -16,11 +16,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Application Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // In AppDelegate.swift or early in app initialization
+        if !AXIsProcessTrusted() {
+            print("WARNING: Accessibility permissions not granted. Window movement will not work.")
+            // Show a dialog prompting user to grant permissions
+        }
+        
         // Initialize the window manager with enhanced settings
         WindowManager.requestAccessibilityPermission()
         initializeWindowObservation()
         // Setup global hotkeys
         setupGlobalHotkeys()
+        
+        WindowManager.shared.monitorWithMouse?.activeWorkspace?.applyTiling()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

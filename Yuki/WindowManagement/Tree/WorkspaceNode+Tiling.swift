@@ -195,14 +195,14 @@ extension WorkspaceNode {
     /// Apply current tiling strategy to this workspace
     func applyTiling() {
         // If it's the float mode, don't apply tiling
-        if tilingEngine.currentModeName == "float" {
+        if tilingEngine?.currentModeName == "float" {
             return
         }
 
         print(
-            "Applying tiling mode: \(tilingEngine.currentModeName) to workspace \(title ?? "unknown")"
+            "Applying tiling mode: \(tilingEngine?.currentModeName) to workspace \(title ?? "unknown")"
         )
-        tilingEngine.applyTiling()
+        tilingEngine?.applyTiling()
 
         // Capture window positions after applying tiling
         captureWindowPositions()
@@ -210,7 +210,7 @@ extension WorkspaceNode {
 
     /// Set tiling strategy for this workspace
     func setTilingStrategy(_ strategy: TilingStrategy) {
-        tilingEngine.setStrategy(strategy)
+        tilingEngine?.setStrategy(strategy)
 
         // Apply immediately
         applyTiling()
@@ -221,7 +221,7 @@ extension WorkspaceNode {
 
     /// Set tiling mode by name
     func setTilingMode(_ modeName: String) {
-        tilingEngine.setTilingMode(modeName)
+        tilingEngine?.setTilingMode(modeName)
 
         // Apply immediately
         applyTiling()
@@ -232,8 +232,8 @@ extension WorkspaceNode {
 
     /// Cycle to next tiling mode
     @discardableResult
-    func cycleToNextTilingMode() -> TilingStrategy {
-        let strategy = tilingEngine.cycleToNextMode()
+    func cycleToNextTilingMode() -> TilingStrategy? {
+        guard let strategy = tilingEngine?.cycleToNextMode() else { return nil }
 
         // Apply immediately
         applyTiling()
@@ -246,7 +246,7 @@ extension WorkspaceNode {
 
     /// Update tiling configuration
     func setTilingConfiguration(_ config: TilingConfiguration) {
-        tilingEngine.config = config
+        tilingEngine?.config = config
         applyTiling()
     }
 }

@@ -14,7 +14,10 @@ class BSPStrategy: TilingStrategy {
     var description: String { "Binary Space Partitioning" }
     
     func applyLayout(to windows: [WindowNode], in availableRect: NSRect, with config: TilingConfiguration) {
-        guard !windows.isEmpty else { return }
+        guard !windows.isEmpty else {
+            print("Warning empty windows")
+            return
+        }
         
         // Apply outer gap
         let rect = NSRect(

@@ -82,10 +82,23 @@ class WindowNode: Node {
     
     /// Sets both the position and size at once
     func setFrame(_ rect: NSRect) {
-        // Perform without animation by temporarily disabling enhanced user interface
-        withEnhancedUserInterfaceDisabled() {
-            resize(to: rect.size)
-            move(to: rect.origin)
+        withEnhancedUserInterfaceDisabled {
+            print("Attempting to set window frame: \(rect)")
+            let result1 = window.set(Ax.sizeAttr, rect.size)
+            let result2 = window.set(Ax.topLeftCornerAttr, rect.origin)
+            print("Set size result: \(result1), set position result: \(result2)")
+            
+            // Force a validation check
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if let currentFrame = self.frame {
+                    print("Window frame after set attempt: \(currentFrame)")
+                    let positionMatches = abs(currentFrame.origin.x - rect.origin.x) < 5 &&
+                    abs(currentFrame.origin.y - rect.origin.y) < 5
+                    let sizeMatches = abs(currentFrame.size.width - rect.size.width) < 5 &&
+                    abs(currentFrame.size.height - rect.size.height) < 5
+                    print("Position matches: \(positionMatches), Size matches: \(sizeMatches)")
+                }
+            }
         }
     }
     

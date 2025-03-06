@@ -37,13 +37,34 @@ class TilingEngine {
 
     /// Apply current tiling strategy to windows
     func applyTiling() {
-        guard let workspace = workspace else { return }
+        guard let workspace = workspace else {
+            print("Error: Workspace empty")
+            return
+        }
         let monitor = workspace.monitor
 
         let windows = workspace.getAllWindowNodes()
         let availableRect = monitor.visibleFrame
 
-        strategy.applyLayout(to: windows, in: availableRect, with: config)
+        print(
+            "About to tile \(windows.count) windows using \(strategy.name) strategy"
+        )
+
+        // Log each window's current position
+        for (i, window) in windows.enumerated() {
+            print("Window \(i) current frame: \(window.frame ?? NSRect.zero)")
+        }
+
+        // Apply the tiling
+        strategy.applyLayout(
+            to: windows, in: monitor.visibleFrame, with: config)
+
+        // Log each window's target position after tiling
+        for (i, window) in windows.enumerated() {
+            print(
+                "Window \(i) target frame should be: \(window.frame ?? NSRect.zero)"
+            )
+        }
     }
 
     /// Change the tiling strategy
@@ -68,7 +89,7 @@ class TilingEngine {
         case "bsp":
             strategy = BSPStrategy()
         default:
-                strategy = BSPStrategy()
+            strategy = BSPStrategy()
         }
 
         setStrategy(strategy)

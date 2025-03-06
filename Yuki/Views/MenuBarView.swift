@@ -20,6 +20,12 @@ struct MenuBarView: View {
                 MonitorSection(monitor: monitor)
             }
             
+            Button {
+                windowManager.monitorWithMouse?.activeWorkspace?.applyTiling()
+            } label: {
+                Text("Apple Tiling")
+            }
+            
             Divider()
             Button {
                 windowManager.printDebugInfo()
