@@ -2,7 +2,7 @@
 //  WindowNode.swift
 //  Yuki
 //
-//  Created by Claude AI on 5/3/25.
+//  Created by Daniel Inama on 5/3/25.
 //
 
 import Foundation

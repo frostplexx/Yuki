@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  Yuki
 //
-//  Created by Claude AI on 6/3/25.
+//  Created by Daniel Inama on 6/3/25.
 //
 
 import SwiftUI

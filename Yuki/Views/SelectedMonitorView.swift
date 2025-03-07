@@ -1,9 +1,3 @@
-//
-//  SelectedMonitorView.swift
-//  Yuki
-//
-//  Created by Daniel Inama on 7/3/25.
-//
 import SwiftUI
 
 struct SelectedMonitorView: View {
@@ -11,6 +5,8 @@ struct SelectedMonitorView: View {
     @State private var workSpaceBeingEdited: WorkspaceNode?
     @State private var isAddingWorkspace = false
     @State private var newWorkspaceName = ""
+    
+    @State private var isCreateButtonHovering = false
 
     var body: some View {
         if let selectedMonitor {
@@ -38,7 +34,14 @@ struct SelectedMonitorView: View {
                                     .clipShape(Circle())
                             }
                             .buttonStyle(.plain)
+                            .scaleEffect(isCreateButtonHovering || isAddingWorkspace ? 1.3 : 1)
                             .padding(.leading, 5)
+                            .onHover{ hovering in
+                                withAnimation(.spring()){
+                                    isCreateButtonHovering = hovering
+                                }
+                            }
+                            .help("Create new Workspace")
                             .popover(
                                 isPresented: $isAddingWorkspace,
                                 arrowEdge: .bottom
@@ -63,6 +66,7 @@ struct SelectedMonitorView: View {
                                         }
                                         .buttonStyle(.borderedProminent)
                                         .disabled(newWorkspaceName.isEmpty)
+                                        .help("Create new Workspace")
                                     }
                                 }
                                 .padding(5)

@@ -2,7 +2,7 @@
 //  PersistentImageCacheManager.swift
 //  Yuki
 //
-//  Created by Claude AI on 7/3/25.
+//  Created by Daniel Inama on 7/3/25.
 //
 
 import AppKit
