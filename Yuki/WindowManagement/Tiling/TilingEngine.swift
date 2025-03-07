@@ -16,7 +16,7 @@ class TilingEngine {
     weak var workspace: WorkspaceNode?
 
     /// Current tiling strategy
-    private var strategy: TilingStrategy
+    var strategy: TilingStrategy
 
     /// Configuration for tiling
     var config: TilingConfiguration

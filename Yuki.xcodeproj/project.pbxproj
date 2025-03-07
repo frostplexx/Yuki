@@ -41,9 +41,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				WindowManagement/Accessibility/AccessibilityService.old,
-				WindowManagement/Tiling/TilingEngine.old,
-				WindowManagement/WindowManager/WindowManager.old,
 				WindowManagement/Workspaces/Workspace.old,
 			);
 			target = 6519DD092D76F85000645F7A /* Yuki */;
@@ -55,9 +52,6 @@
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			buildPhase = 6519DD062D76F85000645F7A /* Sources */;
 			membershipExceptions = (
-				WindowManagement/Accessibility/AccessibilityService.old,
-				WindowManagement/Tiling/TilingEngine.old,
-				WindowManagement/WindowManager/WindowManager.old,
 				WindowManagement/Workspaces/Workspace.old,
 			);
 		};

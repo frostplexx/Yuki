@@ -265,7 +265,7 @@ class WorkspaceNode: Node {
             self.applyTiling()
 
             // Notify that a workspace has been activated
-            WindowNotificationCenter.shared.postWorkspaceActivated(self)
+//            WindowNotificationCenter.shared.postWorkspaceActivated(self)
         }
     }
 
