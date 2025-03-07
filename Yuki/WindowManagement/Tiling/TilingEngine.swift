@@ -43,28 +43,35 @@ class TilingEngine {
         }
         let monitor = workspace.monitor
 
-        let windows = workspace.getAllWindowNodes()
-        let availableRect = monitor.visibleFrame
-
-        print(
-            "About to tile \(windows.count) windows using \(strategy.name) strategy"
-        )
-
-        // Log each window's current position
-        for (i, window) in windows.enumerated() {
-            print("Window \(i) current frame: \(window.frame ?? NSRect.zero)")
+        // Only tile non-minimized windows
+        let windows = workspace.getVisibleWindowNodes()
+        
+        if windows.isEmpty {
+            print("No visible windows to tile")
+            return
         }
+        
+        _ = monitor.visibleFrame
+
+//        print(
+//            "About to tile \(windows.count) visible windows using \(strategy.name) strategy"
+//        )
+//
+        // Log each window's current position
+//        for (i, window) in windows.enumerated() {
+//            print("Window \(i) current frame: \(window.frame ?? NSRect.zero), minimized: \(window.isMinimized)")
+//        }
 
         // Apply the tiling
         strategy.applyLayout(
             to: windows, in: monitor.visibleFrame, with: config)
 
         // Log each window's target position after tiling
-        for (i, window) in windows.enumerated() {
-            print(
-                "Window \(i) target frame should be: \(window.frame ?? NSRect.zero)"
-            )
-        }
+//        for (i, window) in windows.enumerated() {
+//            print(
+//                "Window \(i) target frame should be: \(window.frame ?? NSRect.zero)"
+//            )
+//        }
     }
 
     /// Change the tiling strategy

@@ -15,9 +15,11 @@ class BSPStrategy: TilingStrategy {
     
     func applyLayout(to windows: [WindowNode], in availableRect: NSRect, with config: TilingConfiguration) {
         guard !windows.isEmpty else {
-            print("Warning empty windows")
+            print("Warning: Empty windows array in BSP")
             return
         }
+        
+//        print("BSP: Starting layout for \(windows.count) windows")
         
         // Apply outer gap
         let rect = NSRect(
@@ -27,12 +29,22 @@ class BSPStrategy: TilingStrategy {
             height: availableRect.height - (2 * config.outerGap)
         )
         
-        applyBSP(windows: windows, rect: rect, orientation: .h, config: config)
+        // Simple BSP implementation that directly sets window frames
+        applyBSPDirect(windows: windows, rect: rect, orientation: .h, config: config)
     }
     
-    private func applyBSP(windows: [WindowNode], rect: NSRect, orientation: Orientation, config: TilingConfiguration) {
+    // Version with callback for multithreaded operation (required by protocol)
+    func applyLayout(to windows: [WindowNode], in availableRect: NSRect, with config: TilingConfiguration, completion: @escaping ([WindowNode: NSRect]) -> Void) {
+        // This is just to satisfy the protocol, the direct version is what's used
+        var layouts: [WindowNode: NSRect] = [:]
+        completion(layouts)
+    }
+    
+    // Super simple and direct BSP implementation
+    private func applyBSPDirect(windows: [WindowNode], rect: NSRect, orientation: Orientation, config: TilingConfiguration) {
         // If only one window, it gets the whole space
         if windows.count == 1, let window = windows.first {
+//            print("BSP: Single window gets entire space: \(rect)")
             window.setFrame(rect)
             return
         }
@@ -42,13 +54,15 @@ class BSPStrategy: TilingStrategy {
         let firstHalf = Array(windows.prefix(mid))
         let secondHalf = Array(windows.suffix(from: mid))
         
+//        print("BSP: Splitting \(windows.count) windows - First: \(firstHalf.count), Second: \(secondHalf.count)")
+        
         // Split the rectangle based on orientation
         let (firstRect, secondRect) = splitRect(rect, orientation: orientation, gap: config.windowGap)
         
         // Recursively apply BSP with alternating orientation
         let nextOrientation = orientation.opposite
-        applyBSP(windows: firstHalf, rect: firstRect, orientation: nextOrientation, config: config)
-        applyBSP(windows: secondHalf, rect: secondRect, orientation: nextOrientation, config: config)
+        applyBSPDirect(windows: firstHalf, rect: firstRect, orientation: nextOrientation, config: config)
+        applyBSPDirect(windows: secondHalf, rect: secondRect, orientation: nextOrientation, config: config)
     }
     
     private func splitRect(_ rect: NSRect, orientation: Orientation, gap: CGFloat) -> (NSRect, NSRect) {

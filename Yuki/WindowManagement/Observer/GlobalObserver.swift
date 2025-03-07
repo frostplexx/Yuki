@@ -6,6 +6,7 @@
 import AppKit
 import Cocoa
 
+//TODO: Move to WindowMoveObserver
 let lockScreenAppBundleId = "com.apple.loginwindow"
 
 class GlobalObserver {

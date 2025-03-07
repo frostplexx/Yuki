@@ -9,14 +9,14 @@ import Foundation
 import Cocoa
 
 /// Notification names for window events
-extension Notification.Name {
-    static let windowMoved = Notification.Name("com.yuki.WindowMoved")
-    static let windowResized = Notification.Name("com.yuki.WindowResized")
-    static let windowCreated = Notification.Name("com.yuki.WindowCreated")
-    static let windowRemoved = Notification.Name("com.yuki.WindowRemoved")
-    static let workspaceActivated = Notification.Name("com.yuki.WorkspaceActivated")
-    static let tilingModeChanged = Notification.Name("com.yuki.TilingModeChanged")
-}
+//extension Notification.Name {
+//    static let windowMoved = Notification.Name("com.yuki.WindowMoved")
+//    static let windowResized = Notification.Name("com.yuki.WindowResized")
+//    static let windowCreated = Notification.Name("com.yuki.WindowCreated")
+//    static let windowRemoved = Notification.Name("com.yuki.WindowRemoved")
+//    static let workspaceActivated = Notification.Name("com.yuki.WorkspaceActivated")
+//    static let tilingModeChanged = Notification.Name("com.yuki.TilingModeChanged")
+//}
 
 /// Central class for posting and receiving window event notifications
 class WindowNotificationCenter {

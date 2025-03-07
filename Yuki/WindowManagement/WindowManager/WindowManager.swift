@@ -13,9 +13,7 @@ class WindowManager: ObservableObject {
     static let shared: WindowManager = WindowManager()
 
     var monitors: [Monitor] = []
-    //    private let accessibilityService: AccessibilityService = AccessibilityService()
-    //    private let windowObserver: WindowObserver = WindowObserver()
-
+    
     var windowCache: [CGWindowID: AXUIElement] = [:]
 
     let windowDiscovery = WindowDiscoveryService()
@@ -25,8 +23,12 @@ class WindowManager: ObservableObject {
 
     private init() {
         detectMonitors()
+        
+        // Initialize and start the unified window observer service
+        // Note: We don't call start() here because it will be started in AppDelegate
+        // to ensure proper initialization order and main thread execution
+        
         discoverAndAssignWindows()
-
     }
 
     // MARK: - Monitor Management
@@ -124,7 +126,6 @@ class WindowManager: ObservableObject {
 
     // MARK: - Window List Refresh
 
-    /// Refresh the windows list - check for closed/hidden windows and remove them
     /// Refresh the windows list - check for closed/hidden windows and remove them
     func refreshWindowsList() {
         DispatchQueue.main.async {

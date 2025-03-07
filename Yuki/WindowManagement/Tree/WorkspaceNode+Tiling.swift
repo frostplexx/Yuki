@@ -41,114 +41,15 @@ extension WorkspaceNode {
 
     // MARK: - Observation Setup
 
-    /// Setup observation for window events
+    /// Setup observation for window events - no longer registers individual listeners
+    /// since this is now handled by the WindowObserverService
     func setupObservation() {
-        // Check if already observing
-        if objc_getAssociatedObject(self, &AssociatedKeys.isObservingKey)
-            as? Bool == true
-        {
-            return
-        }
-
-        // Mark as observing
+        // Mark as observing to avoid repeated setup
         objc_setAssociatedObject(
             self, &AssociatedKeys.isObservingKey, true,
             .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-
-        let nc = WindowNotificationCenter.shared
-
-        // Listen for window moved notifications
-        nc.addObserver(
-            self,
-            selector: #selector(handleWindowMoved(_:)),
-            name: .windowMoved
-        )
-
-        // Listen for window resized notifications
-        nc.addObserver(
-            self,
-            selector: #selector(handleWindowResized(_:)),
-            name: .windowResized
-        )
-
-        // Listen for window created notifications
-        nc.addObserver(
-            self,
-            selector: #selector(handleWindowCreated(_:)),
-            name: .windowCreated
-        )
-
-        // Listen for window removed notifications
-        nc.addObserver(
-            self,
-            selector: #selector(handleWindowRemoved(_:)),
-            name: .windowRemoved
-        )
-
-        print(
-            "WorkspaceNode \(title ?? "unknown") is now observing window events"
-        )
-    }
-
-    // MARK: - Event Handlers
-
-    @objc func handleWindowMoved(_ notification: Notification) {
-        guard isActive,
-            let windowId = notification.userInfo?["windowId"] as? Int,
-            windowBelongsToThisWorkspace(windowId)
-        else {
-            return
-        }
-
-        print("Window \(windowId) moved in workspace \(title ?? "unknown")")
-        reapplyTilingWithDelay()
-    }
-
-    @objc func handleWindowResized(_ notification: Notification) {
-        guard isActive,
-            let windowId = notification.userInfo?["windowId"] as? Int,
-            windowBelongsToThisWorkspace(windowId)
-        else {
-            return
-        }
-
-        print("Window \(windowId) resized in workspace \(title ?? "unknown")")
-        reapplyTilingWithDelay()
-    }
-
-    @objc func handleWindowCreated(_ notification: Notification) {
-        guard isActive,
-            let windowId = notification.userInfo?["windowId"] as? Int
-        else {
-            return
-        }
-
-        // Apply tiling if this window belongs to this workspace
-        if windowBelongsToThisWorkspace(windowId) {
-            print(
-                "Window \(windowId) created in workspace \(title ?? "unknown")")
-            reapplyTilingWithDelay()
-        }
-    }
-
-    @objc func handleWindowRemoved(_ notification: Notification) {
-        guard isActive,
-            let windowId = notification.userInfo?["windowId"] as? Int
-        else {
-            return
-        }
-
-        // Apply tiling if this window belonged to this workspace
-        if tiledWindowPositions.keys.contains(windowId) {
-            // Remove from tracked positions
-            tiledWindowPositions.removeValue(forKey: windowId)
-
-            print(
-                "Window \(windowId) removed from workspace \(title ?? "unknown")"
-            )
-            // Reapply tiling to adjust remaining windows
-            reapplyTilingWithDelay()
-        }
+        
+//        print("WorkspaceNode \(title ?? "unknown") is ready for window events")
     }
 
     /// Check if a window belongs to this workspace
@@ -161,11 +62,18 @@ extension WorkspaceNode {
 
     /// Reapply tiling with a short delay
     func reapplyTilingWithDelay() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Create a queue for concurrent tiling operations
+        let tilingQueue = DispatchQueue.global(qos: .userInteractive)
+        
+        tilingQueue.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             guard let self = self else { return }
-            print("Reapplying tiling for workspace \(self.title ?? "unknown")")
-            self.applyTiling()
-            self.captureWindowPositions()
+//            print("Reapplying tiling for workspace \(self.title ?? "unknown")")
+            
+            // Execute these on the main thread since they modify UI state
+            DispatchQueue.main.async {
+                self.applyTiling()
+                self.captureWindowPositions()
+            }
         }
     }
 
@@ -199,9 +107,6 @@ extension WorkspaceNode {
             return
         }
 
-        print(
-            "Applying tiling mode: \(tilingEngine?.currentModeName) to workspace \(title ?? "unknown")"
-        )
         tilingEngine?.applyTiling()
 
         // Capture window positions after applying tiling
@@ -216,7 +121,7 @@ extension WorkspaceNode {
         applyTiling()
 
         // Notify that tiling mode has changed
-        WindowNotificationCenter.shared.postTilingModeChanged(self)
+        WindowObserverService.shared.postTilingModeChanged(self)
     }
 
     /// Set tiling mode by name
@@ -227,7 +132,7 @@ extension WorkspaceNode {
         applyTiling()
 
         // Notify that tiling mode has changed
-        WindowNotificationCenter.shared.postTilingModeChanged(self)
+        WindowObserverService.shared.postTilingModeChanged(self)
     }
 
     /// Cycle to next tiling mode
@@ -239,7 +144,7 @@ extension WorkspaceNode {
         applyTiling()
 
         // Notify that tiling mode has changed
-        WindowNotificationCenter.shared.postTilingModeChanged(self)
+        WindowObserverService.shared.postTilingModeChanged(self)
 
         return strategy
     }

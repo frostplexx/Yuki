@@ -10,8 +10,6 @@ import SwiftUI
 class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Properties
 
-    /// Timer for periodic window refresh
-    private var refreshTimer: Timer?
 
     // MARK: - Application Lifecycle
 
@@ -28,7 +26,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup global hotkeys
         setupGlobalHotkeys()
         
-        WindowManager.shared.monitorWithMouse?.activeWorkspace?.applyTiling()
+        // Initial tiling of active workspace
+        if let activeWorkspace = WindowManager.shared.monitorWithMouse?.activeWorkspace {
+            activeWorkspace.applyTiling()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -40,7 +41,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidBecomeActive(_ notification: Notification) {
         print("Application became active")
         WindowManager.shared.printDebugInfo()
-
     }
 
     func applicationDidResignActive(_ notification: Notification) {
@@ -48,8 +48,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Setup Methods
-
-    /// Setup enhanced window manager initialization
 
     /// Setup global hotkeys using a Carbon event tap or similar
     private func setupGlobalHotkeys() {
@@ -60,27 +58,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Clean up resources before application terminates
     private func cleanupResources() {
-        // Stop refresh timer
-        refreshTimer?.invalidate()
-        refreshTimer = nil
 
-        // Clean up window manager resources
-        //        let windowManager = WindowManager.shared
+        // Stop window observer service
+        WindowObserverService.shared.stop()
     }
 
     /// Initialize window observation system
     @MainActor private func initializeWindowObservation() {
+        // Start the unified window observer service
+        WindowObserverService.shared.start()
 
-        GlobalObserver.initObserver()
-        // Start the window notification center
-        _ = WindowNotificationCenter.shared
-
-        // Start the window movement observer
-        _ = WindowMoveObserver.shared
-
-        // Make sure each workspace is observing window events
+        // Initialize workspace settings but no longer need to set up individual observation
+        // since WindowObserverService handles this centrally
         for monitor in WindowManager.shared.monitors {
             for workspace in monitor.workspaces {
+                // Set up the workspace for tiling (but not for individual event observation)
                 workspace.setupObservation()
             }
         }

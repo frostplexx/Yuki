@@ -123,6 +123,34 @@ class WorkspaceNode: Node {
         return result
     }
 
+    // Find a window node by its AXUIElement
+    func findWindowNodeByAXUIElement(_ element: AXUIElement) -> WindowNode? {
+        let windowNodes = getAllWindowNodes()
+        return windowNodes.first { node in
+            node.window == element
+        }
+    }
+
+    // Get all non-minimized window nodes in the workspace
+    func getVisibleWindowNodes() -> [WindowNode] {
+        let allWindows = getAllWindowNodes()
+        return allWindows.filter { !$0.isMinimized }
+    }
+
+    // Check whether a window with a specific ID is minimized
+    func isWindowMinimized(_ windowId: Int) -> Bool {
+        guard let workspaceId = WindowManager.shared.windowOwnership[windowId],
+            workspaceId == self.id,
+            let windowElement = WindowManager.shared.windowDiscovery
+                .getWindowElement(for: CGWindowID(windowId)),
+            let windowNode = findWindowNodeByAXUIElement(windowElement)
+        else {
+            return false
+        }
+
+        return windowNode.isMinimized
+    }
+
     /// Override adoptWindow to include ownership tracking and avoid duplicates
     func adoptWindow(_ window: AXUIElement) {
         // Get the window ID
@@ -348,11 +376,6 @@ class WorkspaceNode: Node {
             }
         }
 
-        // Wait for all windows to be processed (optional, depends on if you need to wait)
-        // This is non-blocking since we're already in an async context
-        group.notify(queue: .main) {
-            print("All windows from \(self.title ?? "Unknown") hidden")
-        }
     }
 
     // Parallel restoration of window states

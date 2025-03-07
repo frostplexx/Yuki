@@ -24,7 +24,8 @@ class WindowNode: Node {
     /// The system window ID from CGWindowID (optional)
     var systemWindowID: String?
     
-    /// Accessibility service for operations
+    /// Track whether this window is minimized
+    var isMinimized: Bool = false
     
     // MARK: - Initialization
     
@@ -34,6 +35,8 @@ class WindowNode: Node {
         self.window = window
         self.title = window.get(Ax.titleAttr)
         self.systemWindowID = window.get(Ax.identifierAttr)
+        // Check initial minimized state
+        self.isMinimized = window.get(Ax.minimizedAttr) ?? false
     }
     
     
@@ -55,17 +58,6 @@ class WindowNode: Node {
         return NSRect(origin: position, size: size)
     }
     
-    /// Whether the window is minimized
-    var isMinimized: Bool {
-        return window.get(Ax.minimizedAttr) ?? false
-    }
-    
-    /// Whether the window is in fullscreen mode
-    var isFullscreen: Bool {
-        return window.get(Ax.isFullscreenAttr) ?? false
-        
-    }
-    
     // MARK: - Window Operations
     
     /// Moves the window to a new position
@@ -82,21 +74,26 @@ class WindowNode: Node {
     
     /// Sets both the position and size at once
     func setFrame(_ rect: NSRect) {
+        // Skip if minimized
+        if isMinimized {
+            return
+        }
+        
         withEnhancedUserInterfaceDisabled {
-            print("Attempting to set window frame: \(rect)")
+//            print("Attempting to set window frame: \(rect)")
             let result1 = window.set(Ax.sizeAttr, rect.size)
             let result2 = window.set(Ax.topLeftCornerAttr, rect.origin)
-            print("Set size result: \(result1), set position result: \(result2)")
+//            print("Set size result: \(result1), set position result: \(result2)")
             
             // Force a validation check
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 if let currentFrame = self.frame {
-                    print("Window frame after set attempt: \(currentFrame)")
-                    let positionMatches = abs(currentFrame.origin.x - rect.origin.x) < 5 &&
+//                    print("Window frame after set attempt: \(currentFrame)")
+                    _ = abs(currentFrame.origin.x - rect.origin.x) < 5 &&
                     abs(currentFrame.origin.y - rect.origin.y) < 5
-                    let sizeMatches = abs(currentFrame.size.width - rect.size.width) < 5 &&
+                    _ = abs(currentFrame.size.width - rect.size.width) < 5 &&
                     abs(currentFrame.size.height - rect.size.height) < 5
-                    print("Position matches: \(positionMatches), Size matches: \(sizeMatches)")
+//                    print("Position matches: \(positionMatches), Size matches: \(sizeMatches)")
                 }
             }
         }
@@ -104,12 +101,19 @@ class WindowNode: Node {
     
     /// Brings the window to the front
     func focus() {
+        if isMinimized {
+            // Unminimize the window first
+            toggleMinimize()
+        }
+        
+        window.raise()
     }
     
     /// Toggles window minimized state
     func toggleMinimize() {
         let minimized = window.get(Ax.minimizedAttr) ?? false
         window.set(Ax.minimizedAttr, !minimized)
+        self.isMinimized = !minimized
     }
     
     /// Toggles window fullscreen state

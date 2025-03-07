@@ -30,7 +30,6 @@ class Monitor: Identifiable, ObservableObject {
     /// Currently active workspace on this monitor
     @Published var activeWorkspace: WorkspaceNode?
     
-    
     private let tilingEngine: TilingEngine = TilingEngine()
 
     /// Whether this monitor contains the mouse pointer
@@ -98,51 +97,6 @@ class Monitor: Identifiable, ObservableObject {
         self.name = name
         initDefaultWorkspaces()
         
-        
-        // Adopt all windows
-//        for windowInfo in visibleWindows {
-//            guard let windowId = windowInfo["kCGWindowNumber"] as? Int,
-//                  let ownerPID = windowInfo["kCGWindowOwnerPID"] as? Int32,
-//                  let bounds = windowInfo["kCGWindowBounds"] as? [String: Any],
-//                  let x = bounds["X"] as? CGFloat,
-//                  let y = bounds["Y"] as? CGFloat
-//            else { continue }
-            
-            // Skip windows that are already assigned
-//            if WindowManager.shared.windowOwnership[windowId] != nil {
-//                continue
-//            }
-            
-            // Find which monitor contains this window
-//            let windowPosition = NSPoint(x: x, y: y)
-//            let targetMonitor = self.contains(
-//                point: windowPosition
-//            )
-            
-            // Get the active workspace for this monitor
-//            guard let targetMonitor = targetMonitor,
-//                  let targetWorkspace = targetMonitor.activeWorkspace ?? targetMonitor.workspaces.first
-//            else { continue }
-            
-            // Try to get the window element
-//            if let window = WindowManager.shared.getWindowElement(
-//                for: CGWindowID(windowId)
-//            ) {
-                // Create a window node
-//                let windowNode = WindowNode(window)
-                
-//                workspaces.first!.adoptWindow(window)
-                
-                // Add to workspace's default container
-//                targetWorkspace.addWindowToDefaultContainer(windowNode)
-                
-                // Register ownership
-//                windowOwnership[windowId] = targetWorkspace.id
-                
-                // Disable enhanced user interface for better tiling
-//                accessibilityService.disableEnhancedUserInterface(for: window)
-//            }
-//        }
     }
     
     // MARK: - Workspace Management
@@ -191,8 +145,7 @@ class Monitor: Identifiable, ObservableObject {
 //        return true
 //    }
     
-    
-    
+
 
     // MARK: - Basic Window Management
     
