@@ -26,7 +26,7 @@ class TilingEngine {
     /// Initialize with a workspace and optional strategy
     init(
         workspace: WorkspaceNode? = nil,
-        initialStrategy: TilingStrategy = BSPStrategy()
+        initialStrategy: TilingStrategy = FloatStrategy()
     ) {
         self.workspace = workspace
         self.strategy = initialStrategy

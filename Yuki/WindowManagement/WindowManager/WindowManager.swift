@@ -7,12 +7,13 @@
 
 import AppKit
 import Foundation
+import Combine
 
 class WindowManager: ObservableObject {
 
     static let shared: WindowManager = WindowManager()
 
-    var monitors: [Monitor] = []
+    @Published var monitors: [Monitor] = []
     
     var windowCache: [CGWindowID: AXUIElement] = [:]
 
