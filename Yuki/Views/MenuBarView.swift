@@ -20,12 +20,45 @@ struct MenuBarView: View {
             ForEach(windowManager.monitors) { monitor in
                 MonitorSection(monitor: monitor)
             }
+            Divider()
             
+            Button {
+                windowManager.arrangeCurrentWorkspaceBSP()
+            } label: {
+                Text("BSP")
+            }
+            
+            Button {
+                windowManager.arrangeCurrentWorkspaceStacked()
+            } label: {
+                Text("Stack")
+            }
+            
+            Button {
+                windowManager.floatCurrentWorkspace()
+            } label: {
+                Text("Float")
+            }
+            
+            
+            Button {
+                windowManager.arrangeCurrentWorkspaceHorizontally()
+            } label: {
+                Text("HStack")
+            }
+            
+            Button {
+                windowManager.arrangeCurrentWorkspaceVertically()
+            } label: {
+                Text("VStack")
+            }
+
             Button {
                 windowManager.monitorWithMouse?.activeWorkspace?.applyTiling()
             } label: {
                 Text("Apply Tiling")
             }
+            
             
             // Window classification menu
 //            windowClassificationSettingsMenu()

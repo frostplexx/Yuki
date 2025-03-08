@@ -116,38 +116,30 @@ extension WindowManager {
     /// Arrange all windows in the current workspace using HStack
     func arrangeCurrentWorkspaceHorizontally() {
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
-//        workspace.setTilingMode("hstack")
+        workspace.setTilingMode("hstack")
     }
     
     /// Arrange all windows in the current workspace using VStack
     func arrangeCurrentWorkspaceVertically() {
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
-//        workspace.setTilingMode("vstack")
+        workspace.setTilingMode("vstack")
     }
     
     /// Arrange all windows in the current workspace using ZStack
     func arrangeCurrentWorkspaceStacked() {
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
-//        workspace.setTilingMode("zstack")
+        workspace.setTilingMode("zstack")
     }
     
     /// Set the current workspace to BSP mode
     func arrangeCurrentWorkspaceBSP() {
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
-//        workspace.setTilingMode("bsp")
+        workspace.setTilingMode("bsp")
     }
     
     /// Set the current workspace to floating mode
     func floatCurrentWorkspace() {
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
-//        workspace.setTilingMode("float")
-    }
-    
-    /// Toggle through available tiling modes for the current workspace
-    func cycleCurrentWorkspaceTilingMode() {
-        guard let workspace = monitorWithMouse?.activeWorkspace else { return }
-        
-//        let nextMode = workspace.cycleToNextTilingMode()
-//        print("Switched workspace \(workspace.title ?? "Unknown") to \(nextMode.name) mode")
+        workspace.setTilingMode("float")
     }
 }
