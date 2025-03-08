@@ -34,21 +34,6 @@ extension TilingEngine {
             appName = "Unknown"
         }
         
-        // Early return for known cases - faster checks first
-        
-        // 3. MAIN WINDOWS - Always tile certain apps
-        let alwaysTileApps = [
-            "com.apple.Safari",
-            "com.apple.finder",
-            "com.microsoft.VSCode",
-            "com.google.Chrome",
-            "app.zen-browser.zen",  // Added Zen browser to always tile
-            "com.apple.Terminal"
-        ]
-        
-        if alwaysTileApps.contains(bundleID) {
-            return false // Don't float these apps
-        }
         
         // 5. Always float certain apps - moved up for early return
         let alwaysFloatApps = [

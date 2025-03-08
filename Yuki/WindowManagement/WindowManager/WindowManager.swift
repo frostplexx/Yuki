@@ -22,6 +22,15 @@ class WindowManager: ObservableObject {
     /// Maps window IDs to workspace IDs for tracking ownership
     @Published var windowOwnership: [Int: UUID] = [:]
 
+    /// Queue for parallel window operations
+    let windowOperationsQueue = DispatchQueue(
+        label: "com.yuki.windowOperations", 
+        attributes: .concurrent
+    )
+    
+    /// Semaphore to limit concurrent operations to avoid overwhelming the system
+    let operationsSemaphore = DispatchSemaphore(value: 8)
+
     private init() {
         detectMonitors()
         
@@ -202,10 +211,7 @@ class WindowManager: ObservableObject {
 
                             // Remove from workspace using direct reference
                             workspace.remove(windowNode)
-
-                            print(
-                                "Removed window for app with PID \(pid) from workspace \(workspace.title ?? "Untitled")"
-                            )
+                          
                         }
                     }
                 }

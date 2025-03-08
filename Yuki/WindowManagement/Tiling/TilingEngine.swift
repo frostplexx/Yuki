@@ -46,7 +46,7 @@ class TilingEngine {
         // Debug information
 //        print("\n===== WINDOW CLASSIFICATION =====")
 //        print("Total windows: \(allVisibleWindows.count), Tiling: \(windowsToTile.count), Floating: \(allVisibleWindows.count - windowsToTile.count)")
-//        
+//
 //        for window in allVisibleWindows {
 //            printWindowDetails(window, shouldFloat: !windowsToTile.contains(window))
 //        }
@@ -54,8 +54,11 @@ class TilingEngine {
         
         // Only proceed if we have windows to tile
         if !windowsToTile.isEmpty {
-            // Apply tiling only to windows that should be tiled
-            strategy.applyLayout(to: windowsToTile, in: workspace.monitor.visibleFrame, with: config)
+            // Get the layouts but don't apply them directly
+            strategy.applyLayout(to: windowsToTile, in: workspace.monitor.visibleFrame, with: config) { layouts in
+                // Apply layouts in parallel
+                WindowManager.shared.applyLayoutOperationsInParallel(layouts)
+            }
         }
     }
     

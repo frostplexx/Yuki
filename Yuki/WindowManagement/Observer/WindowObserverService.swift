@@ -650,9 +650,6 @@ class WindowObserverService {
                 {
                     var mutableWorkspace = workspace
                     mutableWorkspace.remove(windowNode)
-                    print(
-                        "Removed window \(windowId) from workspace \(workspace.title ?? "Unknown") due to \(eventType)"
-                    )
                 }
 
                 // Reapply tiling to adjust remaining windows
