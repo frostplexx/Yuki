@@ -34,7 +34,7 @@ class WindowObserverService {
     // MARK: - Properties
 
     /// Internal notification center
-    private let notificationCenter = NotificationCenter.default
+    private let nc = NotificationCenter.default
 
     /// Keep track of apps we're observing for window creation
     private var observedApps: [pid_t: AXObserver] = [:]
@@ -80,7 +80,7 @@ class WindowObserverService {
     /// Stop all observation
     func stop() {
         // Remove all notification observers
-        notificationCenter.removeObserver(self)
+        nc.removeObserver(self)
 
         // Stop window movement observation
         stopWindowMoveObservation()
@@ -98,7 +98,6 @@ class WindowObserverService {
     /// Register for system-level notifications
     @MainActor
     private func registerForSystemNotifications() {
-        let nc = NSWorkspace.shared.notificationCenter
 
         // Application lifecycle events
         nc.addObserver(
@@ -126,7 +125,7 @@ class WindowObserverService {
             name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         // Window closing notifications
-        NotificationCenter.default.addObserver(
+        nc.addObserver(
             self, selector: #selector(handleWindowWillClose(_:)),
             name: NSWindow.willCloseNotification, object: nil)
     }
@@ -724,42 +723,42 @@ class WindowObserverService {
 
     /// Post a window moved notification
     func postWindowMoved(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowMoved, object: nil, userInfo: ["windowId": windowId])
         //        print("Window \(windowId) moved")
     }
 
     /// Post a window resized notification
     func postWindowResized(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowResized, object: nil, userInfo: ["windowId": windowId])
         //        print("Window \(windowId) resized")
     }
 
     /// Post a window created notification
     func postWindowCreated(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowCreated, object: nil, userInfo: ["windowId": windowId])
         //        print("Window \(windowId) created")
     }
 
     /// Post a window removed notification
     func postWindowRemoved(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowRemoved, object: nil, userInfo: ["windowId": windowId])
         //        print("Window \(windowId) removed")
     }
 
     /// Post a window closed notification
     func postWindowClosed(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowClosed, object: nil, userInfo: ["windowId": windowId])
         //        print("Window \(windowId) closed with Cmd+W")
     }
 
     /// Post a window minimized notification
     func postWindowMinimized(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowMinimized, object: nil,
             userInfo: ["windowId": windowId])
         //        print("Window \(windowId) minimized")
@@ -767,7 +766,7 @@ class WindowObserverService {
 
     /// Post a window unminimized notification
     func postWindowUnminimized(_ windowId: Int) {
-        notificationCenter.post(
+        nc.post(
             name: .windowUnminimized, object: nil,
             userInfo: ["windowId": windowId])
         //        print("Window \(windowId) unminimized")
@@ -775,13 +774,13 @@ class WindowObserverService {
 
     /// Post a workspace activated notification
     func postWorkspaceActivated(_ workspace: WorkspaceNode) {
-        notificationCenter.post(name: .workspaceActivated, object: workspace)
+        nc.post(name: .workspaceActivated, object: workspace)
         //        print("Workspace \(workspace.title ?? "unknown") activated")
     }
 
     /// Post a tiling mode changed notification
     func postTilingModeChanged(_ workspace: WorkspaceNode) {
-        notificationCenter.post(name: .tilingModeChanged, object: workspace)
+        nc.post(name: .tilingModeChanged, object: workspace)
         //        print("Tiling mode changed for workspace \(workspace.title ?? "unknown")")
     }
 }
