@@ -71,8 +71,6 @@ class HStackStrategy: TilingStrategy {
         let availableWidth = availableRect.width - (2 * config.outerGap) - totalGapWidth
         let windowWidth = availableWidth / CGFloat(count)
         
-        print("HStack: Laying out \(count) windows with width \(windowWidth)")
-        
         for (index, window) in windows.enumerated() {
             let x = availableRect.minX + config.outerGap + CGFloat(index) * (windowWidth + config.windowGap)
             let frame = NSRect(
@@ -82,7 +80,6 @@ class HStackStrategy: TilingStrategy {
                 height: availableRect.height - (2 * config.outerGap)
             )
             
-            print("Setting window \(index) frame to \(frame)")
             window.setFrame(frame)
         }
     }

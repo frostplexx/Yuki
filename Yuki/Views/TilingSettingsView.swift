@@ -16,6 +16,7 @@ struct TilingSettingsView: View {
     @State private var allowResize = false
     @State private var allowMove = false
     @State private var selectedModeIndex = 0
+    @State private var tilingRefreshRate: Double = 0.1 // Default 100ms throttle interval
     
     private let tilingModes = ["Float", "HStack", "VStack", "ZStack", "BSP"]
     
@@ -80,6 +81,21 @@ struct TilingSettingsView: View {
                 }
             }
             
+            // Performance settings
+            VStack(alignment: .leading) {
+                Text("Performance").font(.headline)
+                HStack {
+                    Text("Refresh Interval")
+                    Slider(value: $tilingRefreshRate, in: 0.05...0.5, step: 0.05)
+                        .frame(width: 150)
+                    Text("\(Int(tilingRefreshRate * 1000))ms")
+                        .frame(width: 60)
+                }
+                .onChange(of: tilingRefreshRate) { _ in
+                    applyPerformanceSettings()
+                }
+            }
+            
             // Advanced options
             VStack(alignment: .leading) {
                 Text("Advanced Options").font(.headline)
@@ -108,6 +124,10 @@ struct TilingSettingsView: View {
                 
                 Button("Reset to Defaults") {
                     resetToDefaults()
+                }
+                
+                Button("Clear Caches") {
+                    clearCaches()
                 }
             }
         }
@@ -146,6 +166,11 @@ struct TilingSettingsView: View {
 //        } else {
 //            selectedModeIndex = 0 // Default to Float
 //        }
+        
+        // Load throttle interval
+//        if let engine = workspace.tilingEngine {
+//            tilingRefreshRate = engine.tilingThrottleInterval
+//        }
     }
     
     private func applyTilingMode(_ modeName: String) {
@@ -171,6 +196,14 @@ struct TilingSettingsView: View {
 //        workspace.setTilingConfiguration(config)
     }
     
+    private func applyPerformanceSettings() {
+        guard let workspace = selectedWorkspace else { return }
+        
+//        if let engine = workspace.tilingEngine {
+//            engine.tilingThrottleInterval = tilingRefreshRate
+//        }
+    }
+    
     private func applyToAllWorkspaces() {
         let config = TilingConfiguration(
             windowGap: CGFloat(windowGap),
@@ -181,6 +214,15 @@ struct TilingSettingsView: View {
         
 //        windowManager.setGlobalTilingConfiguration(config)
 //        windowManager.setGlobalTilingMode(tilingModes[selectedModeIndex].lowercased())
+        
+        // Apply performance settings to all workspaces
+//        for monitor in windowManager.monitors {
+//            for workspace in monitor.workspaces {
+//                if let engine = workspace.tilingEngine {
+//                    engine.tilingThrottleInterval = tilingRefreshRate
+//                }
+//            }
+//        }
     }
     
     private func resetToDefaults() {
@@ -189,10 +231,21 @@ struct TilingSettingsView: View {
         allowResize = false
         allowMove = false
         selectedModeIndex = 0 // Float
+        tilingRefreshRate = 0.1 // Reset to 100ms
         
         applyGapSettings()
         applyAdvancedSettings()
         applyTilingMode("float")
+        applyPerformanceSettings()
+    }
+    
+    private func clearCaches() {
+        // Clear window classification caches in all tiling engines
+//        for monitor in windowManager.monitors {
+//            for workspace in monitor.workspaces {
+//                workspace.tilingEngine?.clearCache()
+//            }
+//        }
     }
 }
 

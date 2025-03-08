@@ -28,7 +28,7 @@ struct MenuBarView: View {
             }
             
             // Window classification menu
-            windowClassificationSettingsMenu()
+//            windowClassificationSettingsMenu()
             
             Divider()
             
@@ -38,10 +38,6 @@ struct MenuBarView: View {
                 Text("Debug Info")
             }
             
-            Button("Inspect Windows") {
-                inspectAllWindows()
-            }
-
             
             Button {
                 windowManager.discoverAndAssignWindows()
@@ -56,24 +52,6 @@ struct MenuBarView: View {
             .help("Open Settings")
             .keyboardShortcut(",")
         }
-    }
-    
-    
-    func inspectAllWindows() {
-        guard let workspace = windowManager.monitorWithMouse?.activeWorkspace else { return }
-        let allWindows = workspace.getAllWindowNodes()
-        
-        print("\n--- WINDOW CLASSIFICATION INSPECTION ---")
-        for (i, window) in allWindows.enumerated() {
-            let shouldFloat = WindowClassifier.shared.shouldWindowFloat(window.window)
-            let title = window.title ?? "Untitled"
-            var pid: pid_t = 0
-            AXUIElementGetPid(window.window, &pid)
-            let app = NSRunningApplication(processIdentifier: pid)?.localizedName ?? "Unknown"
-            
-            print("\(i+1). \(title) (\(app)): \(shouldFloat ? "FLOATING" : "TILED")")
-        }
-        print("-------------------------------------\n")
     }
 }
 

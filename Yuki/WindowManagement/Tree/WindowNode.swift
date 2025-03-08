@@ -24,6 +24,10 @@ class WindowNode: Node {
     /// The system window ID from CGWindowID (optional)
     var systemWindowID: String?
     
+    private struct AssociatedKeys {
+        static var isFloatingKey = "com.yuki.windowNode.isFloatingKey"
+    }
+    
     /// Track whether this window is minimized
     var isMinimized: Bool = false
     
@@ -149,6 +153,23 @@ class WindowNode: Node {
         }
         
         return result
+    }
+    
+    // Property to determine if this window should always float
+    var isFloating: Bool {
+        get {
+            return objc_getAssociatedObject(self, &AssociatedKeys.isFloatingKey) as? Bool ?? false
+        }
+        set {
+            objc_setAssociatedObject(self, &AssociatedKeys.isFloatingKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+    
+    // Toggle floating state
+    @discardableResult
+    func toggleFloating() -> Bool {
+        isFloating = !isFloating
+        return isFloating
     }
     
     /// Check if enhanced user interface is enabled for a window's application

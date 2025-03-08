@@ -99,7 +99,7 @@ extension WorkspaceNode {
         // Update stored positions
         tiledWindowPositions = positions
     }
-
+    
     /// Apply current tiling strategy to this workspace
     func applyTiling() {
         // If it's the float mode, don't apply tiling

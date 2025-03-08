@@ -26,9 +26,9 @@ struct YukiApp: App {
             MenuBarView(
                 openSettings: { showSettings() }
             )
-            .onAppear {
-                showSettings()
-            }
+//            .onAppear {
+//                showSettings()
+//            }
         } label: {
             Text(
                 windowManager.monitorWithMouse?.activeWorkspace?.title
@@ -76,9 +76,31 @@ struct YukiApp: App {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
-        let windowController = NSWindowController(window: window)
-        windowController.showWindow(self)
+        let windowController = SettingsWindowController(window: window)
+          windowController.showWindow(self)
         windowControllers.append(windowController)
     }
 
+}
+
+class SettingsWindowController: NSWindowController, NSWindowDelegate {
+    override init(window: NSWindow?) {
+        super.init(window: window)
+        window?.delegate = self
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func windowWillClose(_ notification: Notification) {
+        // Remove self from the controllers array
+        if let index = windowControllers.firstIndex(where: { $0 === self }) {
+            windowControllers.remove(at: index)
+        }
+        ImageCacheManager.shared.clearMemoryCache()
+        
+        // Manually break potential reference cycles
+        window?.contentViewController = nil
+    }
 }

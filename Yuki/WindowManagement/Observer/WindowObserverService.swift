@@ -307,7 +307,7 @@ class WindowObserverService {
         if let targetWorkspace = workspaces.first {
             // Only switch workspaces if needed
             if targetWorkspace.monitor.activeWorkspace?.id != targetWorkspace.id {
-                print("App activation detected (\(app.localizedName ?? "Unknown")), activating workspace: \(targetWorkspace.title ?? "Unknown")")
+//                print("App activation detected (\(app.localizedName ?? "Unknown")), activating workspace: \(targetWorkspace.title ?? "Unknown")")
                 DispatchQueue.main.async {
                     targetWorkspace.activate()
                 }
@@ -473,7 +473,7 @@ class WindowObserverService {
                         // Remove from workspace
                         workspace.remove(windowNode)
                         
-                        print("Removed closed/hidden window \(windowId) from workspace \(workspace.title ?? "Unknown")")
+//                        print("Removed closed/hidden window \(windowId) from workspace \(workspace.title ?? "Unknown")")
                     }
                 }
             }
@@ -583,7 +583,7 @@ class WindowObserverService {
                 if let window = WindowManager.shared.windowDiscovery.getWindowElement(for: CGWindowID(windowId)),
                    let windowNode = workspace.findWindowNodeByAXUIElement(window) {
                     windowNode.isMinimized = true
-                    print("Window \(windowId) marked as minimized in workspace \(workspace.title ?? "Unknown")")
+//                    print("Window \(windowId) marked as minimized in workspace \(workspace.title ?? "Unknown")")
                     
                     // If not float mode, reapply tiling to adjust layout for remaining windows
                     if workspace.tilingEngine?.currentModeName != "float" {
@@ -596,7 +596,7 @@ class WindowObserverService {
                 if let window = WindowManager.shared.windowDiscovery.getWindowElement(for: CGWindowID(windowId)),
                    let windowNode = workspace.findWindowNodeByAXUIElement(window) {
                     windowNode.isMinimized = false
-                    print("Window \(windowId) marked as unminimized in workspace \(workspace.title ?? "Unknown")")
+//                    print("Window \(windowId) marked as unminimized in workspace \(workspace.title ?? "Unknown")")
                     
                     // Always reapply tiling to incorporate the unminimized window
                     if workspace.tilingEngine?.currentModeName != "float" {
