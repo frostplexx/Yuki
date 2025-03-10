@@ -170,13 +170,17 @@ extension WindowManager {
     /// Apply tiling operations in parallel from a TilingStrategy result
     /// - Parameter layoutMap: Dictionary mapping WindowNodes to target frames
     func applyLayoutOperationsInParallel(_ layoutMap: [WindowNode: NSRect]) {
-        let operations = layoutMap.map { (window, rect) in
-            return {
-                window.setFrame(rect)
-            }
-        }
+        // Group windows by their process ID to minimize context switches
+        let windowsByPID = Dictionary(grouping: layoutMap.keys) { WindowManager.shared.getPID(for: $0.window) }
         
-        batchWindowOperations(operations)
+        for (_, windows) in windowsByPID {
+            let operations = windows.compactMap { window -> (() -> Void)? in
+                guard let rect = layoutMap[window] else { return nil }
+                return { window.setFrame(rect) }
+            }
+            
+            batchWindowOperations(operations)
+        }
     }
     
     /// Move multiple windows in parallel

@@ -38,6 +38,7 @@ extension WorkspaceNode {
         static var tiledWindowPositionsKey = "com.yuki.tiledWindowPositionsKey"
         static var isObservingKey = "com.yuki.isObservingKey"
     }
+    
 
     // MARK: - Observation Setup
 
@@ -61,20 +62,26 @@ extension WorkspaceNode {
     }
 
     /// Reapply tiling with a short delay
+
     func reapplyTilingWithDelay() {
-        // Create a queue for concurrent tiling operations
-        let tilingQueue = DispatchQueue.global(qos: .userInteractive)
+        // Cancel any pending tiling operation
+        tilingWorkItem?.cancel()
         
-        tilingQueue.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Create a new work item
+        let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
-//            print("Reapplying tiling for workspace \(self.title ?? "unknown")")
             
-            // Execute these on the main thread since they modify UI state
             DispatchQueue.main.async {
                 self.applyTiling()
                 self.captureWindowPositions()
             }
         }
+        
+        // Save reference to the work item
+        tilingWorkItem = workItem
+        
+        // Schedule with delay
+        tilingQueue.asyncAfter(deadline: .now() + 0.2, execute: workItem)
     }
 
     // MARK: - Tiling Management

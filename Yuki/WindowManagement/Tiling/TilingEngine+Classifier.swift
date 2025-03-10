@@ -5,6 +5,7 @@ extension TilingEngine {
     
     /// Check if a window should float (not be tiled)
     func shouldWindowFloat(_ windowNode: WindowNode) -> Bool {
+        
         // Skip window if already set to float
         if windowNode.isFloating {
             return true
@@ -16,6 +17,8 @@ extension TilingEngine {
         if windowNode.isMinimized {
             return true
         }
+        
+        
         
         // 2. Get window app info first (fast check)
         var pid: pid_t = 0
@@ -33,6 +36,8 @@ extension TilingEngine {
             bundleID = ""
             appName = "Unknown"
         }
+        
+        
         
         
         // 5. Always float certain apps - moved up for early return
@@ -53,7 +58,15 @@ extension TilingEngine {
         let subrole = window.get(Ax.subroleAttr) ?? ""
         
         // 8. Check subrole - float special window types
-        if subrole != "" && subrole != kAXStandardWindowSubrole as String {
+        let floatingSubroles = [
+            "AXDialog",
+            "AXSheet",
+            "AXSystemDialog",
+            "AXFloatingWindow"
+            // Add other specific subroles that should float
+        ]
+
+        if floatingSubroles.contains(subrole) {
             return true
         }
         
@@ -106,7 +119,7 @@ extension TilingEngine {
             }
         }
         
-        // Default to tile the window (changed default behavior)
+        
         return false
     }
     

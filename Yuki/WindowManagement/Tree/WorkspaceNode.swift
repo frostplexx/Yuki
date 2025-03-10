@@ -30,6 +30,9 @@ class WorkspaceNode: Node {
 
     // Array to store window states
     private var savedWindowStates: [SavedWindowState] = []
+    
+    var tilingWorkItem: DispatchWorkItem?
+    let tilingQueue = DispatchQueue.global(qos: .userInteractive)
 
     // Use dispatch queues for parallel processing
     private let processingQueue = DispatchQueue(
