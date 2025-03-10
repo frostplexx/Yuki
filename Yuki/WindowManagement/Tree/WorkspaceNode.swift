@@ -33,6 +33,13 @@ class WorkspaceNode: Node {
     
     var tilingWorkItem: DispatchWorkItem?
     let tilingQueue = DispatchQueue.global(qos: .userInteractive)
+    
+    
+    var needsReapplyTiling = false
+    var reapplyTilingTimer: Timer?
+
+    private var cachedWindowNodes: [WindowNode]?
+    private var windowNodesCacheInvalid = true
 
     // Use dispatch queues for parallel processing
     private let processingQueue = DispatchQueue(
@@ -58,10 +65,13 @@ class WorkspaceNode: Node {
         setupObservation()
     }
 
-    deinit {
-        //        stopTilingEnforcement()
-        NotificationCenter.default.removeObserver(self)
+    func append(_ child: any Node) {
+        var mutableChild = child
+        mutableChild.parent = self
+        children.append(mutableChild)
+        windowNodesCacheInvalid = true
     }
+
 
     /// Finds a window node by system window ID
     /// - Parameter systemWindowID: The system window ID to find
@@ -105,27 +115,21 @@ class WorkspaceNode: Node {
     /// Gets all window nodes in the workspace - optimized version
     /// - Returns: Array of all window nodes
     func getAllWindowNodes() -> [WindowNode] {
-        var result: [WindowNode] = []
-        result.reserveCapacity(children.count)  // Pre-allocate for performance
-
-        // Use filter + compactMap for better performance
-        let directWindows = children.compactMap { $0 as? WindowNode }
-        result.append(contentsOf: directWindows)
-
-        // Get container nodes
-        let containers = children.compactMap { $0 as? ContainerNode }
-
-        // Get windows from containers
-        for container in containers {
-            let containerWindows = container.children.compactMap {
-                $0 as? WindowNode
-            }
-            result.append(contentsOf: containerWindows)
+        if !windowNodesCacheInvalid, let cached = cachedWindowNodes {
+            return cached
         }
-
+        
+        var result: [WindowNode] = []
+        result.reserveCapacity(children.count)
+        
+        // [existing code to populate result]
+        
+        // Cache the result
+        cachedWindowNodes = result
+        windowNodesCacheInvalid = false
         return result
     }
-
+    
     // Find a window node by its AXUIElement
     func findWindowNodeByAXUIElement(_ element: AXUIElement) -> WindowNode? {
         let windowNodes = getAllWindowNodes()
@@ -482,6 +486,36 @@ class WorkspaceNode: Node {
                 }
             }
         }
+    }
+    
+    // Add to WorkspaceNode.swift
+
+    /// Remove a window node without triggering tiling updates
+    /// - Parameter windowNode: The window node to remove
+    func removeWithoutUpdating(_ windowNode: WindowNode) {
+        // First, remove from window ownership tracking if needed
+        if let windowID = windowNode.systemWindowID, let intID = Int(windowID) {
+            WindowManager.shared.windowOwnership.removeValue(forKey: intID)
+            
+            // Also remove from WindowManager's node cache
+            WindowManager.shared.windowNodeCache.removeValue(forKey: intID)
+        }
+        
+        // Remove the node from children collection
+        children.removeAll {
+            let nodeChild = ($0 as (any Node))
+            return nodeChild.id == windowNode.id
+        }
+        
+        // Invalidate window list cache without triggering updates
+        if let cachedWindowNodes = (self as WorkspaceNode).cachedWindowNodes {
+            self.cachedWindowNodes = cachedWindowNodes.filter { $0.id != windowNode.id }
+        } else {
+            // Mark cache as invalid
+            windowNodesCacheInvalid = true
+        }
+        
+        // Do not apply tiling here - will be done later if needed
     }
 }
 

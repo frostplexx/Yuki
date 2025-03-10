@@ -43,7 +43,6 @@ extension WorkspaceNode {
     // MARK: - Observation Setup
 
     /// Setup observation for window events - no longer registers individual listeners
-    /// since this is now handled by the WindowObserverService
     func setupObservation() {
         // Mark as observing to avoid repeated setup
         objc_setAssociatedObject(
@@ -62,26 +61,30 @@ extension WorkspaceNode {
     }
 
     /// Reapply tiling with a short delay
-
     func reapplyTilingWithDelay() {
-        // Cancel any pending tiling operation
-        tilingWorkItem?.cancel()
+        needsReapplyTiling = true
         
-        // Create a new work item
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                self.applyTiling()
-                self.captureWindowPositions()
-            }
+        // If timer already exists, just let it fire
+        if reapplyTilingTimer != nil {
+            return
         }
         
-        // Save reference to the work item
-        tilingWorkItem = workItem
-        
-        // Schedule with delay
-        tilingQueue.asyncAfter(deadline: .now() + 0.2, execute: workItem)
+        // Create a new timer that will check the flag
+        reapplyTilingTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
+            guard let self = self, self.needsReapplyTiling else { return }
+            
+            self.needsReapplyTiling = false
+            self.reapplyTilingTimer = nil
+            
+            DispatchQueue.global(qos: .userInteractive).async {
+                // Do calculations off main thread
+                // Then apply on main thread:
+                DispatchQueue.main.async {
+                    self.applyTiling()
+                    self.captureWindowPositions()
+                }
+            }
+        }
     }
 
     // MARK: - Tiling Management

@@ -250,4 +250,5 @@ extension WindowManager {
         
         batchWindowOperations(operations)
     }
+    
 }

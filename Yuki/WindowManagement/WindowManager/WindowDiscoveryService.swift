@@ -14,32 +14,34 @@ class WindowDiscoveryService {
     // Private cache for window elements
     private var windowCache: [CGWindowID: AXUIElement] = [:]
     
+    private var cachedVisibleWindows: [[String: Any]] = []
+    private var lastWindowRefreshTime: TimeInterval = 0
+    private let cacheTimeout: TimeInterval = 0.1
+    
     // Private initializer for singleton
     init() {}
     
     /// Get all visible windows on the screen
     func getAllVisibleWindows() -> [[String: Any]] {
-        // Use explicit CGWindowListOption without array literal
+        let now = Date().timeIntervalSince1970
+        
+        // Return cached result if recent enough
+        if now - lastWindowRefreshTime < cacheTimeout {
+            return cachedVisibleWindows
+        }
+        
+        // Original code to get windows
         let options = CGWindowListOption.optionOnScreenOnly.union(.excludeDesktopElements)
-        
-        // Use CGWindowListCopyWindowInfo directly
-        let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
-        
-        // Cast the result
-        guard let windowInfoList = windowList as? [[String: Any]] else {
-            print("Failed to get window list")
+        guard let windowInfoList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return []
         }
         
-        // Filter to visible windows (layer 0)
-        let visibleWindows = windowInfoList.filter { windowInfo in
-            guard let layer = windowInfo["kCGWindowLayer"] as? Int else {
-                return false
-            }
-            return layer == 0
-        }
+        let visibleWindows = windowInfoList.filter { ($0["kCGWindowLayer"] as? Int) == 0 }
         
-//        print("Found \(visibleWindows.count) visible windows")
+        // Update cache
+        cachedVisibleWindows = visibleWindows
+        lastWindowRefreshTime = now
+        
         return visibleWindows
     }
     

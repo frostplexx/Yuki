@@ -585,7 +585,28 @@ class WindowObserverService {
                 if activeWorkspace.tilingEngine?.currentModeName != "float" {
                     activeWorkspace.applyTiling()
                 }
+
             }
+        }
+
+    }
+
+    // Add a direct removal method that doesn't trigger immediate updates
+    private func removeWindowDirectly(_ windowNode: WindowNode, _ windowId: Int)
+    {
+        // Remove from ownership map immediately
+        WindowManager.shared.windowOwnership.removeValue(forKey: windowId)
+
+        // Remove from position tracking
+        if let workspace = WindowManager.shared.findWorkspaceById(
+            windowNode.parent?.id)
+        {
+            var positions = workspace.tiledWindowPositions
+            positions.removeValue(forKey: windowId)
+            workspace.tiledWindowPositions = positions
+
+            // Remove node without triggering updates
+            workspace.removeWithoutUpdating(windowNode)
         }
     }
 
@@ -634,31 +655,20 @@ class WindowObserverService {
                 }
 
             case .removed, .closed:
-                // Remove from tracked positions
-                var positions = workspace.tiledWindowPositions
-                positions.removeValue(forKey: windowId)
-                workspace.tiledWindowPositions = positions
-
-                // Remove from window ownership map
-                WindowManager.shared.windowOwnership.removeValue(
-                    forKey: windowId)
-
-                // Remove the window from workspace
-                if let windowElement = WindowManager.shared.windowDiscovery
-                    .getWindowElement(for: CGWindowID(windowId)),
-                    let windowNode = workspace.findWindowNodeByAXUIElement(
-                        windowElement)
+                // Direct lookup instead of searching
+                if let workspaceId = WindowManager.shared.windowOwnership[
+                    windowId],
+                    let windowNode = WindowManager.shared.findWindowNodeByID(
+                        windowId)
                 {
-                    var mutableWorkspace = workspace
-                    mutableWorkspace.remove(windowNode)
-                    print(
-                        "Removed window \(windowId) from workspace \(workspace.title ?? "Unknown") due to \(eventType)"
-                    )
-                }
 
-                // Reapply tiling to adjust remaining windows
-                if workspace.tilingEngine?.currentModeName != "float" {
-                    workspace.reapplyTilingWithDelay()
+                    // Remove synchronously without applying tiling immediately
+                    self.removeWindowDirectly(windowNode, windowId)
+
+                    // Mark for delayed tiling update
+                    if workspace.tilingEngine?.currentModeName != "float" {
+                        workspace.reapplyTilingWithDelay()
+                    }
                 }
 
             case .minimized:

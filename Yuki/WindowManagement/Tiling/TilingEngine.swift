@@ -34,31 +34,40 @@ class TilingEngine {
     /// Apply current tiling strategy to windows
     func applyTiling() {
        guard let workspace = workspace else {
+            print("Cannot apply tiling - no workspace available")
             return
         }
         
         // Get all visible, non-minimized windows
         let allVisibleWindows = workspace.getVisibleWindowNodes()
         
+        print("Found \(allVisibleWindows.count) visible windows for tiling consideration")
+        
         // Filter windows that should not be tiled
         let windowsToTile = allVisibleWindows.filter { !shouldWindowFloat($0) }
         
         // Debug information
-//        print("\n===== WINDOW CLASSIFICATION =====")
-//        print("Total windows: \(allVisibleWindows.count), Tiling: \(windowsToTile.count), Floating: \(allVisibleWindows.count - windowsToTile.count)")
+        print("\n===== WINDOW CLASSIFICATION =====")
+        print("Total windows: \(allVisibleWindows.count), Tiling: \(windowsToTile.count), Floating: \(allVisibleWindows.count - windowsToTile.count)")
 //
 //        for window in allVisibleWindows {
 //            printWindowDetails(window, shouldFloat: !windowsToTile.contains(window))
 //        }
-//        print("=================================\n")
+        for window in allVisibleWindows {
+            printWindowDetails(window, shouldFloat: !windowsToTile.contains(window))
+        }
+        print("=================================\n")
         
         // Only proceed if we have windows to tile
         if !windowsToTile.isEmpty {
             // Get the layouts but don't apply them directly
             strategy.applyLayout(to: windowsToTile, in: workspace.monitor.visibleFrame, with: config) { layouts in
+                print("Applying tiling layout to \(layouts.count) windows")
                 // Apply layouts in parallel
                 WindowManager.shared.applyLayoutOperationsInParallel(layouts)
             }
+        } else {
+            print("No windows to tile")
         }
     }
     
@@ -87,6 +96,7 @@ class TilingEngine {
                 strategy = BSPStrategy()
         }
         
+        print("Setting tiling mode to: \(modeName) (\(strategy.name))")
         setStrategy(strategy)
     }
     
@@ -111,6 +121,7 @@ class TilingEngine {
                 nextStrategy = BSPStrategy()
         }
         
+        print("Cycling from \(currentName) to \(nextStrategy.name)")
         setStrategy(nextStrategy)
         return nextStrategy
     }

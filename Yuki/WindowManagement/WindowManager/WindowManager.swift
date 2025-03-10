@@ -16,6 +16,9 @@ class WindowManager: ObservableObject {
     @Published var monitors: [Monitor] = []
     
     var windowCache: [CGWindowID: AXUIElement] = [:]
+    
+    private var workspaceCache = [UUID: WorkspaceNode]()
+    var windowNodeCache = [Int: WindowNode]()
 
     let windowDiscovery = WindowDiscoveryService()
 
@@ -30,6 +33,7 @@ class WindowManager: ObservableObject {
     
     /// Semaphore to limit concurrent operations to avoid overwhelming the system
     let operationsSemaphore = DispatchSemaphore(value: 8)
+    
 
     private init() {
         detectMonitors()
@@ -220,5 +224,60 @@ class WindowManager: ObservableObject {
             // Update debug info
             self.printDebugInfo()
         }
+    }
+    
+    func findWorkspaceById(_ id: UUID?) -> WorkspaceNode? {
+        guard let id = id else { return nil }
+        
+        // Check cache first
+        if let cached = workspaceCache[id] {
+            return cached
+        }
+        
+        // Look up and cache
+        for monitor in monitors {
+            if let workspace = monitor.workspaces.first(where: { $0.id == id }) {
+                workspaceCache[id] = workspace
+                return workspace
+            }
+        }
+        
+        return nil
+    }
+    
+    func findWindowNodeByID(_ windowID: Int) -> WindowNode? {
+        // Check cache first
+        if let cached = windowNodeCache[windowID] {
+            return cached
+        }
+        
+        // If not in cache, look up by workspace ownership
+        if let workspaceID = windowOwnership[windowID] {
+            if let workspace = findWorkspaceById(workspaceID) {
+                // Search for the window node in this workspace
+                for node in workspace.getAllWindowNodes() {
+                    if let nodeID = node.systemWindowID, Int(nodeID) == windowID {
+                        // Cache the result
+                        windowNodeCache[windowID] = node
+                        return node
+                    }
+                }
+            }
+        }
+        
+        // If still not found, search all workspaces (slower)
+        for monitor in monitors {
+            for workspace in monitor.workspaces {
+                for node in workspace.getAllWindowNodes() {
+                    if let nodeID = node.systemWindowID, Int(nodeID) == windowID {
+                        // Cache the result
+                        windowNodeCache[windowID] = node
+                        return node
+                    }
+                }
+            }
+        }
+        
+        return nil
     }
 }

@@ -1,5 +1,7 @@
-import sys_types
+import Foundation
+import Darwin 
 import AppKit
+
 extension TilingEngine {
     // MARK: - Window Classification
     
