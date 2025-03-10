@@ -46,7 +46,7 @@ struct SettingsView: View {
                     title: "Advanced",
                     icon: "wrench.and.screwdriver",
                     view: AnyView(
-                        AdvanvedSettingsView()
+                        AdvancedSettingsView()
                     )
                 ),
                 (

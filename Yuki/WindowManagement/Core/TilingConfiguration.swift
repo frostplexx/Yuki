@@ -1,46 +1,37 @@
-//
-//  TilingConfiguration.swift
-//  Yuki
-//
-//  Created by Daniel Inama on 6/3/25.
-//
+// TilingConfiguration.swift
+// Configuration for tiling operations
 
 import Foundation
-import Cocoa
 
 /// Configuration for tiling operations
 struct TilingConfiguration {
-    // MARK: - Properties
-    
     /// Spacing between windows
     var windowGap: CGFloat = 8.0
     
     /// Margin around workspace edge
     var outerGap: CGFloat = 8.0
     
-    /// Whether windows should be resizable
-    var allowResize: Bool = false
-    
-    /// Whether windows should be movable
-    var allowMove: Bool = false
-    
     /// Whether to restore window positions when switching workspaces
     var restorePositions: Bool = true
     
-    // MARK: - Initialization
+    /// Whether to automatically tile new windows
+    var autoTileNewWindows: Bool = true
     
-    /// Default initializer
+    /// Whether to show visual feedback during tiling operations
+    var showTilingAnimation: Bool = true
+    
+    /// Default initialization
     init(
         windowGap: CGFloat = 8.0,
         outerGap: CGFloat = 8.0,
-        allowResize: Bool = false,
-        allowMove: Bool = false,
-        restorePositions: Bool = true
+        restorePositions: Bool = true,
+        autoTileNewWindows: Bool = true,
+        showTilingAnimation: Bool = true
     ) {
         self.windowGap = windowGap
         self.outerGap = outerGap
-        self.allowResize = allowResize
-        self.allowMove = allowMove
         self.restorePositions = restorePositions
+        self.autoTileNewWindows = autoTileNewWindows
+        self.showTilingAnimation = showTilingAnimation
     }
 }

@@ -73,7 +73,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for monitor in WindowManager.shared.monitors {
             for workspace in monitor.workspaces {
                 // Set up the workspace for tiling (but not for individual event observation)
-                workspace.setupObservation()
+//                workspace.setupObservation()
             }
         }
 

@@ -1,106 +1,83 @@
-//
-//  AboutView.swift
-//  Yuki
-//
-//  Created by Daniel Inama on 7/3/25.
-//
+// AboutView.swift
+// About and information view
 
 import SwiftUI
 
 struct AboutView: View {
-    // Get the app version from the bundle
-    private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-        return "Version \(version) (\(build))"
-    }
-    
-    // Get the current year for the copyright notice
-    private var currentYear: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy"
-        return formatter.string(from: Date())
-    }
+    private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    private let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
     
     var body: some View {
-        VStack(spacing: 20) {
-            // App Icon
-            Image("AppIcon")
-            .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 128, height: 128)
-                    .cornerRadius(22)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-            // App Name
-            Text("Yuki")
-                .font(.system(size: 28, weight: .bold))
-                .padding(.top, 10)
-            
-            // Version
-            Text(appVersion)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            // Description
-            Text("A modern tiling window manager for macOS")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-                .padding(.top, 5)
-                .padding(.horizontal, 20)
-            
-            // Divider
-            Divider()
-                .padding(.vertical, 10)
-                .padding(.horizontal, 40)
-            
-            // Developer Info
-            VStack(spacing: 8) {
-                Text("Created by Frostplexx")
-                    .font(.body)
-                
-//                Text("© \(currentYear) Daniel Inama. All rights reserved.")
-//                    .font(.caption)
-//                    .foregroundColor(.secondary)
-            }
-            
-            // Links
-            HStack(spacing: 25) {
-                // GitHub
-                Link(destination: URL(string: "https://github.com/frostplexx/Yuki")!) {
-                    VStack {
-                        Image(systemName: "link.circle.fill")
-                            .font(.system(size: 20))
-                        Text("GitHub")
-                            .font(.caption)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // App Info
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // App icon and name
+                        HStack(spacing: 15) {
+                            Image(nsImage: NSApp.applicationIconImage)
+                                .resizable()
+                                .frame(width: 64, height: 64)
+                            
+                            VStack(alignment: .leading) {
+                                Text("Yuki")
+                                    .font(.title)
+                                Text("Version \(appVersion) (\(buildNumber))")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Text("A lightweight tiling window manager for macOS")
+                            .foregroundColor(.secondary)
                     }
+                    .padding()
                 }
                 
-                // Website
-                Link(destination: URL(string: "https://yukimac.app")!) {
-                    VStack {
-                        Image(systemName: "globe")
-                            .font(.system(size: 20))
-                        Text("Website")
-                            .font(.caption)
+                // Links
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Links")
+                            .font(.headline)
+                        
+                        makeLink("GitHub Repository", url: "https://github.com/d-inama/yuki")
+                        makeLink("Documentation", url: "https://github.com/d-inama/yuki/wiki")
+                        makeLink("Report an Issue", url: "https://github.com/d-inama/yuki/issues")
                     }
+                    .padding()
                 }
                 
-                // Report Issue
-                Link(destination: URL(string: "https://github.com/danielinama/yuki/issues")!) {
-                    VStack {
-                        Image(systemName: "exclamationmark.bubble")
-                            .font(.system(size: 20))
-                        Text("Report Issue")
-                            .font(.caption)
+                // Acknowledgments
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Acknowledgments")
+                            .font(.headline)
+                        
+                        Text("Thanks to the open-source community and all contributors.")
+                            .foregroundColor(.secondary)
                     }
+                    .padding()
                 }
             }
-            .padding(.top, 10)
-            
-            Spacer()
+            .padding()
         }
-        .padding()
-        .frame(minWidth: 400, minHeight: 500)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private func makeLink(_ title: String, url: String) -> some View {
+        Button(action: {
+            if let url = URL(string: url) {
+                NSWorkspace.shared.open(url)
+            }
+        }) {
+            HStack {
+                Text(title)
+                    .foregroundColor(.accentColor)
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
