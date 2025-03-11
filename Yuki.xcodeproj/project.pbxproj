@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		6519DD422D76FFFE00645F7A /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 6519DD412D76FFFE00645F7A /* Defaults */; };
 		6519DD442D76FFFE00645F7A /* DefaultsMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 6519DD432D76FFFE00645F7A /* DefaultsMacros */; };
+		656970012D808A6600482C44 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = 656970002D808A6600482C44 /* HotKey */; };
 		65CF0F4B2D784C080003EDA1 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 65CF0F4A2D784C080003EDA1 /* README.md */; };
 /* End PBXBuildFile section */
 
@@ -84,6 +85,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				656970012D808A6600482C44 /* HotKey in Frameworks */,
 				6519DD422D76FFFE00645F7A /* Defaults in Frameworks */,
 				6519DD442D76FFFE00645F7A /* DefaultsMacros in Frameworks */,
 			);
@@ -149,6 +151,7 @@
 			packageProductDependencies = (
 				6519DD412D76FFFE00645F7A /* Defaults */,
 				6519DD432D76FFFE00645F7A /* DefaultsMacros */,
+				656970002D808A6600482C44 /* HotKey */,
 			);
 			productName = Yuki;
 			productReference = 6519DD0A2D76F85000645F7A /* Yuki.app */;
@@ -235,6 +238,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				6519DD402D76FFFE00645F7A /* XCRemoteSwiftPackageReference "Defaults" */,
+				65696FFF2D808A6600482C44 /* XCRemoteSwiftPackageReference "HotKey" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6519DD0B2D76F85000645F7A /* Products */;
@@ -628,6 +632,14 @@
 				minimumVersion = 9.0.2;
 			};
 		};
+		65696FFF2D808A6600482C44 /* XCRemoteSwiftPackageReference "HotKey" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/soffes/HotKey";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -640,6 +652,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6519DD402D76FFFE00645F7A /* XCRemoteSwiftPackageReference "Defaults" */;
 			productName = DefaultsMacros;
+		};
+		656970002D808A6600482C44 /* HotKey */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 65696FFF2D808A6600482C44 /* XCRemoteSwiftPackageReference "HotKey" */;
+			productName = HotKey;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

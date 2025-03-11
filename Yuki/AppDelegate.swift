@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import HotKey
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Properties
-
+    
+    // Keep reference to shortcut manager
+    private var shortcutManager: ShortcutManager?
 
     // MARK: - Application Lifecycle
 
@@ -18,13 +21,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !AXIsProcessTrusted() {
             print("WARNING: Accessibility permissions not granted. Window movement will not work.")
             // Show a dialog prompting user to grant permissions
+            showAccessibilityPermissionsAlert()
         }
         
-        // Initialize the window manager with enhanced settings
+        // Request accessibility permission
         WindowManager.requestAccessibilityPermission()
-        initializeWindowObservation()
-        // Setup global hotkeys
+        
+        // Initialize window manager
+        initializeWindowManagement()
+        
+        // Setup keyboard shortcuts
         setupGlobalHotkeys()
+        
+        // Load and apply settings
+//        SettingsManager.shared.applyAllSettings()
         
         // Initial tiling of active workspace
         if let activeWorkspace = WindowManager.shared.monitorWithMouse?.activeWorkspace {
@@ -33,6 +43,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Save settings before termination
+        SettingsManager.shared.captureCurrentWorkspaces()
+        
         // Clean up any resources before app terminates
         cleanupResources()
         print("Application will terminate")
@@ -49,22 +62,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Setup Methods
 
-    /// Setup global hotkeys using a Carbon event tap or similar
+    /// Setup global hotkeys using HotKey library
     private func setupGlobalHotkeys() {
-        // Implementation for global hotkeys would go here
-        // This would typically use a framework like HotKey or MASShortcut
-        // or implement direct Carbon event handling
+        // Initialize the shortcut manager
+        shortcutManager = ShortcutManager.shared
+        
+        // Register notification observers for updates
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSettingsChanged),
+            name: NSNotification.Name("com.yuki.SettingsChanged"),
+            object: nil
+        )
+    }
+    
+    /// Handle settings changes
+    @objc private func handleSettingsChanged(_ notification: Notification) {
+        // Apply updated settings
+        SettingsManager.shared.applyAllSettings()
     }
 
     /// Clean up resources before application terminates
     private func cleanupResources() {
-
         // Stop window observer service
         WindowObserverService.shared.stop()
+        
+        // Release shortcut manager
+        shortcutManager = nil
     }
 
-    /// Initialize window observation system
-    @MainActor private func initializeWindowObservation() {
+    /// Initialize window management system
+    @MainActor private func initializeWindowManagement() {
         // Start the unified window observer service
         WindowObserverService.shared.start()
 
@@ -73,10 +101,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for monitor in WindowManager.shared.monitors {
             for workspace in monitor.workspaces {
                 // Set up the workspace for tiling (but not for individual event observation)
-//                workspace.setupObservation()
+                // workspace.setupObservation()
             }
         }
 
-        print("Window observation system initialized")
+        print("Window management system initialized")
+    }
+    
+    /// Show an alert if accessibility permissions aren't granted
+    private func showAccessibilityPermissionsAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Accessibility Permissions Required"
+        alert.informativeText = "Yuki needs accessibility permissions to manage your windows. Without these permissions, window tiling will not work correctly."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Later")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 }

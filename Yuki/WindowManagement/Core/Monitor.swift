@@ -57,11 +57,42 @@ class Monitor: Identifiable, ObservableObject {
         self.visibleFrame = visibleFrame
         self.name = name
         
-        // Create default workspaces
-        initializeDefaultWorkspaces()
+        // Workspaces will be initialized from settings or with defaults
+        loadWorkspacesFromSettings()
     }
     
     // MARK: - Workspace Management
+    
+    /// Load workspaces from settings or create defaults
+    private func loadWorkspacesFromSettings() {
+        let settingsManager = SettingsManager.shared
+        let configuredWorkspaces = settingsManager.getWorkspaces(forMonitorID: id)
+        
+        if !configuredWorkspaces.isEmpty {
+            // Create workspaces from saved configurations
+            for config in configuredWorkspaces {
+                if let uuid = UUID(uuidString: config.id) {
+                    let workspace = WorkspaceNode(
+                        id: uuid,
+                        title: config.name,
+                        monitor: self
+                    )
+                    
+                    // Set tiling type
+                    workspace.tilingEngine.setLayoutType(named: config.layoutType)
+                    
+                    // Add to workspaces list
+                    workspaces.append(workspace)
+                }
+            }
+            
+            // Set first workspace as active by default
+            activeWorkspace = workspaces.first
+        } else {
+            // Create default workspaces if none exist
+            initializeDefaultWorkspaces()
+        }
+    }
     
     /// Initialize default workspaces for this monitor
     private func initializeDefaultWorkspaces() {
@@ -75,12 +106,45 @@ class Monitor: Identifiable, ObservableObject {
         
         // Set the first workspace as active
         activeWorkspace = workspaces.first
+        
+        // Save to settings
+        let settingsManager = SettingsManager.shared
+        
+        // Add both workspaces to settings
+        settingsManager.addWorkspace(
+            name: "Default",
+            monitorID: id,
+            layoutType: "bsp"
+        )
+        
+        settingsManager.addWorkspace(
+            name: "Secondary",
+            monitorID: id,
+            layoutType: "hstack"
+        )
     }
     
     /// Create a new workspace
     @discardableResult
-    func createWorkspace(name: String) -> WorkspaceNode {
-        let workspace = WorkspaceNode(title: name, monitor: self)
+    func createWorkspace(name: String, layoutType: String = "bsp") -> WorkspaceNode {
+        // First add to settings to generate a UUID
+        let config = SettingsManager.shared.addWorkspace(
+            name: name,
+            monitorID: id,
+            layoutType: layoutType
+        )
+        
+        // Create the workspace with the assigned UUID
+        let workspace = WorkspaceNode(
+            id: config.uuid,
+            title: name,
+            monitor: self
+        )
+        
+        // Set layout type
+        workspace.tilingEngine.setLayoutType(named: layoutType)
+        
+        // Add to workspaces
         workspaces.append(workspace)
         return workspace
     }
@@ -124,9 +188,39 @@ class Monitor: Identifiable, ObservableObject {
             }
         }
         
+        // Remove from settings
+        SettingsManager.shared.removeWorkspace(withID: workspace.id.uuidString)
+        
         // Remove the workspace
         workspaces.remove(at: index)
         return true
+    }
+    
+    /// Switch to the next workspace
+    func activateNextWorkspace() {
+        guard !workspaces.isEmpty else { return }
+        
+        let currentIndex = workspaces.firstIndex { $0.id == activeWorkspace?.id } ?? -1
+        let nextIndex = (currentIndex + 1) % workspaces.count
+        
+        workspaces[nextIndex].activate()
+    }
+    
+    /// Switch to the previous workspace
+    func activatePreviousWorkspace() {
+        guard !workspaces.isEmpty else { return }
+        
+        let currentIndex = workspaces.firstIndex { $0.id == activeWorkspace?.id } ?? 0
+        let prevIndex = (currentIndex - 1 + workspaces.count) % workspaces.count
+        
+        workspaces[prevIndex].activate()
+    }
+    
+    /// Activate a workspace by index
+    func activateWorkspace(at index: Int) {
+        guard index >= 0 && index < workspaces.count else { return }
+        
+        workspaces[index].activate()
     }
     
     /// Check if a point is within this monitor's frame

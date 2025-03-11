@@ -153,7 +153,7 @@ class TilingEngine {
     weak var workspace: WorkspaceNode?
     
     /// Root layout node for nested layouts
-    private(set) var rootNode: LayoutNode
+    var rootNode: LayoutNode
     
     /// Whether to use nested layouts (tree structure) vs. flat layouts
     var useNestedLayouts: Bool = false
@@ -172,7 +172,7 @@ class TilingEngine {
     )
     
     /// Synchronization queue
-    private let syncQueue = DispatchQueue(
+    let syncQueue = DispatchQueue(
         label: "com.yuki.tilingSync"
     )
     

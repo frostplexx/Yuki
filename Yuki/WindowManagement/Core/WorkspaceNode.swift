@@ -44,10 +44,13 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
     /// Timer for delayed tiling reapplication
     var reapplyTilingTimer: Timer?
     
+    // Custom background color (optional)
+    var backgroundColor: NSColor?
+    
     // MARK: - Initialization
     
-    init(title: String? = nil, monitor: Monitor, useNestedLayouts: Bool = false) {
-        self.id = UUID()
+    init(id: UUID = UUID(), title: String? = nil, monitor: Monitor, useNestedLayouts: Bool = false) {
+        self.id = id
         self.title = title
         self.monitor = monitor
         
@@ -180,6 +183,21 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
         if tilingEngine.setLayoutType(named: modeName) {
             // Apply the new tiling mode immediately
             applyTiling()
+            
+            // Update in settings
+            updateLayoutTypeInSettings(modeName)
+        }
+    }
+    
+    /// Update workspace layout type in settings
+    private func updateLayoutTypeInSettings(_ layoutType: String) {
+        let settingsManager = SettingsManager.shared
+        let workspaceConfigs = settingsManager.getSettings().workspaces
+        
+        if let index = workspaceConfigs.firstIndex(where: { $0.id == id.uuidString }) {
+            var updatedConfig = workspaceConfigs[index]
+            updatedConfig.layoutType = layoutType
+            settingsManager.updateWorkspace(updatedConfig)
         }
     }
     
@@ -191,6 +209,9 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
         if newMode != .float {
             applyTiling()
         }
+        
+        // Update in settings
+        updateLayoutTypeInSettings(newMode.rawValue)
     }
     
     // MARK: - Nested Layout Operations
@@ -252,6 +273,12 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             self.applyTiling()
         }
+        
+        // Notify observers
+        NotificationCenter.default.post(
+            name: .workspaceActivated,
+            object: self
+        )
     }
     
     /// Deactivate this workspace (hide its windows)
@@ -281,7 +308,7 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
     }
     
     /// Restore window positions from saved state
-    private func restoreWindowPositions() {
+    func restoreWindowPositions() {
         let windows = getAllWindowNodes()
         
         for window in windows {
@@ -297,6 +324,23 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
                 )
                 window.move(to: screenCenter)
             }
+        }
+    }
+    
+    /// Rename workspace and update in settings
+    func rename(to newTitle: String) {
+        if newTitle.isEmpty { return }
+        
+        title = newTitle
+        
+        // Update in settings
+        let settingsManager = SettingsManager.shared
+        let workspaceConfigs = settingsManager.getSettings().workspaces
+        
+        if let index = workspaceConfigs.firstIndex(where: { $0.id == id.uuidString }) {
+            var updatedConfig = workspaceConfigs[index]
+            updatedConfig.name = newTitle
+            settingsManager.updateWorkspace(updatedConfig)
         }
     }
 }

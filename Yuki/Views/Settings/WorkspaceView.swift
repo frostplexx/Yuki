@@ -1,9 +1,3 @@
-//
-//  WorkspaceView.swift
-//  Yuki
-//
-//  Created by Daniel Inama on 7/3/25.
-//
 import SwiftUI
 
 struct WorkspaceView: View {
@@ -14,18 +8,23 @@ struct WorkspaceView: View {
     @State private var maxDisplayWidth: CGFloat = 160
     @State private var monitorPadding: CGFloat = 20
     @State private var minMonitorWidth: CGFloat = 80
+    @State private var isAddingWorkspace = false
+    @State private var newWorkspaceName = ""
+    @State private var editingWorkspace: WorkspaceNode? = nil
+    @State private var showDeleteAlert = false
+    @State private var workspaceToDelete: WorkspaceNode? = nil
+    
+    // Animation states
+    @State private var animateMonitors = false
 
     var body: some View {
-        VStack {
-            VStack(alignment: .leading) {
-                //                Text("Monitors")
-                //                    .font(.system(size: 13, weight: .medium))
-                //                    .opacity(0.5)
-                //                    .padding(.horizontal)
-
+        ScrollView {
+            
+            VStack(spacing: 20) {
+                // Monitor visualization section
                 ZStack {
-                    // Background with depth effect
-                    RoundedRectangle(cornerRadius: 18)
+                    // Monitor display card
+                    RoundedRectangle(cornerRadius: 24)
                         .fill(Color.black.opacity(0.03))
                         .shadow(
                             color: .black.opacity(0.1), radius: 2, x: 0, y: 1
@@ -33,135 +32,244 @@ struct WorkspaceView: View {
                         .shadow(
                             color: .black.opacity(0.05), radius: 15, x: 0, y: 10
                         )
-
+                    
                     // Glass blur effect
-                    RoundedRectangle(cornerRadius: 18)
+                    RoundedRectangle(cornerRadius: 24)
                         .foregroundStyle(.ultraThinMaterial)
-
+                    
                     // Inner reflection highlight
-                    RoundedRectangle(cornerRadius: 18)
+                    RoundedRectangle(cornerRadius: 24)
                         .stroke(Color.white.opacity(0.3), lineWidth: 1)
                         .padding(1)
-
+                    
                     // Monitors container
-                    HStack(alignment: .bottom, spacing: 30) {
-                        ForEach(windowManager.monitors, id: \.self) { monitor in
-                            MonitorElement(
-                                monitor: monitor,
-                                scale: scale,
-                                isSelected: selectedMonitor?.id == monitor.id,
-                                onSelect: {
-                                    withAnimation(.spring(response: 0.3)) {
-                                        selectedMonitor = monitor
+                    VStack {
+                        Text("Monitors")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 12)
+                        
+                        HStack(alignment: .bottom, spacing: 30) {
+                            ForEach(windowManager.monitors, id: \.self) { monitor in
+                                MonitorElement(
+                                    monitor: monitor,
+                                    scale: scale,
+                                    isSelected: selectedMonitor?.id == monitor.id,
+                                    onSelect: {
+                                        withAnimation(.spring(response: 0.3)) {
+                                            selectedMonitor = monitor
+                                        }
                                     }
-                                }
-                            )
+                                )
+                                .scaleEffect(animateMonitors ? 1.0 : 0.9)
+                                .opacity(animateMonitors ? 1.0 : 0.7)
+                            }
                         }
+                        .padding(.vertical, 25)
+                        .padding(.horizontal, 35)
                     }
-                    .padding(.vertical, 25)
-                    .padding(.horizontal, 35)
                 }
-                .frame(height: 220)
-            }
-
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Layout Configuration")
-                    .font(.headline)
-
-                // Layout type selection
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Default Layout")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        Picker(
-                            "",
-                            selection: .init(
-                                get: { settings.settings.defaultLayout },
-                                set: {
-                                    settings.update(\.defaultLayout, to: $0)
-                                }
-                            )
-                        ) {
-                            Text("Binary Space Partition").tag("bsp")
-                            Text("Horizontal Stack").tag("hstack")
-                            Text("Vertical Stack").tag("vstack")
-                            Text("Stacked Windows").tag("zstack")
-                            Text("Float").tag("float")
-                        }
-                        .pickerStyle(.segmented)
+                .frame(height: 240)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        animateMonitors = true
                     }
-                    .padding()
                 }
-
-                // Gap configuration
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Window Gaps")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
+                
+                // Workspace management for selected monitor
+                if let selectedMonitor = selectedMonitor {
+                    VStack(spacing: 16) {
+                        // Workspace header
                         HStack {
-                            Text("Inner Gap:")
-                            Slider(
-                                value: .init(
-                                    get: { Double(settings.settings.gapSize) },
-                                    set: {
-                                        settings.update(\.gapSize, to: Int($0))
-                                    }
-                                ),
-                                in: 0...50
-                            )
-                            Text("\(settings.settings.gapSize)px")
-                                .monospacedDigit()
-                                .frame(width: 50, alignment: .trailing)
+                            Text("Workspaces for \(selectedMonitor.name)")
+                                .font(.headline)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                isAddingWorkspace = true
+                                newWorkspaceName = ""
+                            }) {
+                                Label("Add Workspace", systemImage: "plus.circle.fill")
+                                    .foregroundColor(.accentColor)
+                            }
+                            .buttonStyle(.plain)
                         }
-
-                        HStack {
-                            Text("Outer Gap:")
-                            Slider(
-                                value: .init(
-                                    get: { Double(settings.settings.outerGap) },
-                                    set: {
-                                        settings.update(\.outerGap, to: Int($0))
+                        .padding(.horizontal, 4)
+                        
+                        // Workspace grid
+                        LazyVGrid(columns: [
+                            GridItem(.adaptive(minimum: 180, maximum: 220), spacing: 16)
+                        ], spacing: 16) {
+                            ForEach(selectedMonitor.workspaces) { workspace in
+                                WorkspaceCard(
+                                    workspace: workspace,
+                                    isActive: workspace.isActive,
+                                    onActivate: { workspace.activate() },
+                                    onEdit: { editingWorkspace = workspace },
+                                    onDelete: {
+                                        workspaceToDelete = workspace
+                                        showDeleteAlert = true
                                     }
-                                ),
-                                in: 0...50
-                            )
-                            Text("\(settings.settings.outerGap)px")
-                                .monospacedDigit()
-                                .frame(width: 50, alignment: .trailing)
+                                )
+                            }
                         }
+                        .padding(8)
                     }
-                    .padding()
-                }
-
-                // Window behavior
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Window Behavior")
-                            .font(.subheadline)
+                    .transition(.moveAndFade)
+                } else {
+                    // No monitor selected
+                    VStack {
+                        Text("Select a monitor to view and manage workspaces")
                             .foregroundColor(.secondary)
-
-                        Toggle(
-                            "Float new windows by default",
-                            isOn: .init(
-                                get: { settings.settings.floatNewWindows },
-                                set: {
-                                    settings.update(\.floatNewWindows, to: $0)
-                                }
-                            ))
                     }
-                    .padding()
+                    .frame(height: 200)
                 }
+                
+                // Layout settings section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Layout Configuration")
+                        .font(.headline)
+                    
+                    // Layout type selection
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Default Layout")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Picker(
+                                "",
+                                selection: .init(
+                                    get: { settings.getSettings().defaultLayout },
+                                    set: {
+                                        settings.update(\.defaultLayout, to: $0)
+                                    }
+                                )
+                            ) {
+                                Label("BSP", systemImage: "square.grid.2x2").tag("bsp")
+                                Label("Horizontal", systemImage: "rectangle.split.3x1").tag("hstack")
+                                Label("Vertical", systemImage: "rectangle.split.1x2").tag("vstack")
+                                Label("Stacked", systemImage: "square.stack").tag("zstack")
+                                Label("Float", systemImage: "arrow.up.and.down.and.arrow.left.and.right").tag("float")
+                            }
+                            .pickerStyle(.segmented)
+                            .labelStyle(.iconOnly)
+                        }
+                        .padding()
+                    }
+                    
+                    // Gap configuration
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Window Gaps")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            VStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("Inner Gap:")
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(settings.getSettings().gapSize)px")
+                                            .monospacedDigit()
+                                            .frame(width: 45, alignment: .trailing)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    HStack {
+                                        Slider(
+                                            value: .init(
+                                                get: { Double(settings.getSettings().gapSize) },
+                                                set: {
+                                                    settings.update(\.gapSize, to: Int($0))
+                                                }
+                                            ),
+                                            in: 0...50,
+                                            step: 1
+                                        )
+                                        .accentColor(.blue)
+                                    }
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("Outer Gap:")
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(settings.getSettings().outerGap)px")
+                                            .monospacedDigit()
+                                            .frame(width: 45, alignment: .trailing)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    HStack {
+                                        Slider(
+                                            value: .init(
+                                                get: { Double(settings.getSettings().outerGap) },
+                                                set: {
+                                                    settings.update(\.outerGap, to: Int($0))
+                                                }
+                                            ),
+                                            in: 0...50,
+                                            step: 1
+                                        )
+                                        .accentColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                    }
+                }
+                .padding(.top, 10)
+                
+                Spacer()
             }
-
-            SelectedMonitorView(selectedMonitor: $selectedMonitor)
-
-            Spacer()
         }
         .padding()
+        .sheet(isPresented: $isAddingWorkspace) {
+            AddWorkspaceView(
+                monitorName: selectedMonitor?.name ?? "Unknown",
+                workspaceName: $newWorkspaceName,
+                onCancel: { isAddingWorkspace = false },
+                onSave: {
+                    if let monitor = selectedMonitor, !newWorkspaceName.isEmpty {
+                        let newWorkspace = monitor.createWorkspace(name: newWorkspaceName)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            newWorkspace.activate()
+                        }
+                    }
+                    isAddingWorkspace = false
+                }
+            )
+        }
+        .sheet(item: $editingWorkspace) { workspace in
+            EditWorkspaceView(
+                workspace: workspace,
+                onCancel: { editingWorkspace = nil },
+                onSave: { newName, newLayoutType in
+                    workspace.rename(to: newName)
+                    workspace.setTilingMode(newLayoutType)
+                    editingWorkspace = nil
+                }
+            )
+        }
+        .alert(isPresented: $showDeleteAlert) {
+            Alert(
+                title: Text("Delete Workspace"),
+                message: Text("Are you sure you want to delete the workspace '\(workspaceToDelete?.title ?? "")'? All windows will be moved to the next available workspace."),
+                primaryButton: .destructive(Text("Delete")) {
+                    if let workspace = workspaceToDelete, let monitor = selectedMonitor {
+                        monitor.removeWorkspace(workspace)
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
         .onAppear {
             // Calculate scale so the largest monitor fits
             calcScale()
@@ -283,12 +391,23 @@ struct MonitorElement: View {
             )
             .contentShape(Rectangle())
 
-            // Monitor name label
-            Text(monitor.name)
-                .font(.system(size: isSelected ? 13 : 12))
-                .opacity(isSelected ? 1.0 : 0.7)
-                .fontWeight(isSelected ? .medium : .regular)
-                .foregroundColor(isSelected ? .primary : .secondary)
+            // Monitor name label with active workspace
+            VStack(spacing: 4) {
+                Text(monitor.name)
+                    .font(.system(size: isSelected ? 13 : 12))
+                    .fontWeight(isSelected ? .medium : .regular)
+                    .foregroundColor(isSelected ? .primary : .secondary)
+                
+                if let activeWorkspace = monitor.activeWorkspace {
+                    Text(activeWorkspace.title ?? "Untitled")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
         }
         .onHover { hovering in
             withAnimation {
@@ -346,6 +465,421 @@ struct MonitorElement: View {
     }
 }
 
+struct WorkspaceCard: View {
+    var workspace: WorkspaceNode
+    var isActive: Bool
+    var onActivate: () -> Void
+    var onEdit: () -> Void
+    var onDelete: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Text(workspace.title ?? "Untitled")
+                    .font(.headline)
+                    .foregroundColor(isActive ? .primary : .secondary)
+                
+                Spacer()
+                
+                // Layout type icon
+                layoutTypeIcon
+                    .foregroundColor(isActive ? .accentColor : .secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                isActive ?
+                    Color.accentColor.opacity(0.1) :
+                    Color.clear
+            )
+            .cornerRadius(8, corners: [.topLeft, .topRight])
+            
+            // Divider
+            Divider()
+                .padding(.horizontal, 0)
+            
+            // Window count and stats
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(workspace.getAllWindowNodes().count) windows")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if workspace.isActive {
+                        Text("Active")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+                
+                Spacer()
+                
+                // Actions
+                HStack(spacing: 8) {
+                    Button(action: onActivate) {
+                        Image(systemName: "arrow.right.circle")
+                            .foregroundColor(.blue)
+                            .imageScale(.medium)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                    .opacity(isHovering ? 1.0 : 0.0)
+                    
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil.circle")
+                            .foregroundColor(.orange)
+                            .imageScale(.medium)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                    .opacity(isHovering ? 1.0 : 0.0)
+                    
+                    // Only show delete button if this isn't the only workspace
+                    if workspace.monitor.workspaces.count > 1 {
+                        Button(action: onDelete) {
+                            Image(systemName: "trash.circle")
+                                .foregroundColor(.red)
+                                .imageScale(.medium)
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                        .opacity(isHovering ? 1.0 : 0.0)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+        .background(Color.secondary.opacity(0.05))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    isActive ? Color.accentColor : Color.gray.opacity(0.2),
+                    lineWidth: isActive ? 2 : 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovering = hovering
+            }
+        }
+        .onTapGesture {
+            onActivate()
+        }
+    }
+    
+    private var layoutTypeIcon: some View {
+        let type = workspace.tilingEngine.currentLayoutType
+        
+        let iconName: String
+        
+        switch type {
+        case .bsp:
+            iconName = "square.grid.2x2"
+        case .hstack:
+            iconName = "rectangle.split.3x1"
+        case .vstack:
+            iconName = "rectangle.split.1x2"
+        case .zstack:
+            iconName = "square.stack"
+        case .float:
+            iconName = "arrow.up.and.down.and.arrow.left.and.right"
+        }
+        
+        return Image(systemName: iconName)
+    }
+}
+
+struct AddWorkspaceView: View {
+    var monitorName: String
+    @Binding var workspaceName: String
+    var onCancel: () -> Void
+    var onSave: () -> Void
+    @State private var layoutType = "bsp"
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Header
+            Text("Add New Workspace")
+                .font(.headline)
+            
+            // Form
+            VStack(alignment: .leading, spacing: 16) {
+                // Monitor name (non-editable)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Monitor")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text(monitorName)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(8)
+                }
+                
+                // Workspace name
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Workspace Name")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Enter name", text: $workspaceName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onSubmit {
+                            if !workspaceName.isEmpty {
+                                onSave()
+                            }
+                        }
+                }
+                
+                // Layout type
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Layout Type")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Picker("", selection: $layoutType) {
+                        Text("BSP").tag("bsp")
+                        Text("Horizontal Stack").tag("hstack")
+                        Text("Vertical Stack").tag("vstack")
+                        Text("Stacked Windows").tag("zstack")
+                        Text("Float").tag("float")
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+            .padding(.horizontal, 16)
+            
+            // Buttons
+            HStack {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .keyboardShortcut(.cancelAction)
+                
+                Spacer()
+                
+                Button("Create") {
+                    onSave()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(workspaceName.isEmpty)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
+        .frame(width: 400)
+    }
+}
+
+struct EditWorkspaceView: View {
+    var workspace: WorkspaceNode
+    var onCancel: () -> Void
+    var onSave: (String, String) -> Void
+    
+    @State private var workspaceName: String
+    @State private var layoutType: String
+    
+    init(workspace: WorkspaceNode, onCancel: @escaping () -> Void, onSave: @escaping (String, String) -> Void) {
+        self.workspace = workspace
+        self.onCancel = onCancel
+        self.onSave = onSave
+        
+        // Initialize state
+        _workspaceName = State(initialValue: workspace.title ?? "")
+        _layoutType = State(initialValue: workspace.tilingEngine.currentLayoutType.rawValue)
+    }
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Header
+            Text("Edit Workspace")
+                .font(.headline)
+            
+            // Form
+            VStack(alignment: .leading, spacing: 16) {
+                // Monitor name (non-editable)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Monitor")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text(workspace.monitor.name)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(8)
+                }
+                
+                // Workspace name
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Workspace Name")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Enter name", text: $workspaceName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onSubmit {
+                            if !workspaceName.isEmpty {
+                                onSave(workspaceName, layoutType)
+                            }
+                        }
+                }
+                
+                // Layout type
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Layout Type")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Picker("", selection: $layoutType) {
+                        Label("BSP", systemImage: "square.grid.2x2").tag("bsp")
+                        Label("Horizontal", systemImage: "rectangle.split.3x1").tag("hstack")
+                        Label("Vertical", systemImage: "rectangle.split.1x2").tag("vstack")
+                        Label("Stacked", systemImage: "square.stack").tag("zstack")
+                        Label("Float", systemImage: "arrow.up.and.down.and.arrow.left.and.right").tag("float")
+                    }
+                    .pickerStyle(.segmented)
+                    .labelStyle(.iconOnly)
+                }
+            }
+            .padding(.horizontal, 16)
+            
+            // Buttons
+            HStack {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .keyboardShortcut(.cancelAction)
+                
+                Spacer()
+                
+                Button("Save") {
+                    onSave(workspaceName, layoutType)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(workspaceName.isEmpty)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
+        .frame(width: 400)
+    }
+}
+
+enum RectCorner {
+    case topLeft, topRight, bottomLeft, bottomRight, allCorners
+    
+    static let all: Set<RectCorner> = [.topLeft, .topRight, .bottomLeft, .bottomRight]
+}
+
+// Helper for applying cornerRadius to specific corners
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: Set<RectCorner>) -> some View {
+        clipShape(RoundedCornerShape(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCornerShape: Shape {
+    var radius: CGFloat = .infinity
+    var corners: Set<RectCorner> = Set(RectCorner.all)
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let topLeft = corners.contains(.topLeft)
+        let topRight = corners.contains(.topRight)
+        let bottomLeft = corners.contains(.bottomLeft)
+        let bottomRight = corners.contains(.bottomRight)
+        
+        let width = rect.size.width
+        let height = rect.size.height
+        
+        // Start at top-left
+        if topLeft {
+            path.move(to: CGPoint(x: rect.minX + radius, y: rect.minY))
+        } else {
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        }
+        
+        // Top-right corner
+        if topRight {
+            path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+            path.addArc(
+                center: CGPoint(x: rect.maxX - radius, y: rect.minY + radius),
+                radius: radius,
+                startAngle: Angle(degrees: -90),
+                endAngle: Angle(degrees: 0),
+                clockwise: false
+            )
+        } else {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        }
+        
+        // Bottom-right corner
+        if bottomRight {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+            path.addArc(
+                center: CGPoint(x: rect.maxX - radius, y: rect.maxY - radius),
+                radius: radius,
+                startAngle: Angle(degrees: 0),
+                endAngle: Angle(degrees: 90),
+                clockwise: false
+            )
+        } else {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        }
+        
+        // Bottom-left corner
+        if bottomLeft {
+            path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
+            path.addArc(
+                center: CGPoint(x: rect.minX + radius, y: rect.maxY - radius),
+                radius: radius,
+                startAngle: Angle(degrees: 90),
+                endAngle: Angle(degrees: 180),
+                clockwise: false
+            )
+        } else {
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        }
+        
+        // Back to top-left
+        if topLeft {
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
+            path.addArc(
+                center: CGPoint(x: rect.minX + radius, y: rect.minY + radius),
+                radius: radius,
+                startAngle: Angle(degrees: 180),
+                endAngle: Angle(degrees: 270),
+                clockwise: false
+            )
+        } else {
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        }
+        
+        path.closeSubpath()
+        return path
+    }
+}
+
+// Custom transition for smooth workspace selection
+extension AnyTransition {
+    static var moveAndFade: AnyTransition {
+        let insertion = AnyTransition.opacity.combined(with: .move(edge: .top))
+        let removal = AnyTransition.opacity.combined(with: .move(edge: .bottom))
+        return .asymmetric(insertion: insertion, removal: removal)
+    }
+}
+
 #Preview {
     WorkspaceView()
+        .frame(width: 800, height: 600)
 }
