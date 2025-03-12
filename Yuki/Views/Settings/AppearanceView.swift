@@ -125,6 +125,7 @@ struct AppearanceView: View {
                 .padding()
                 .background(Color.secondary.opacity(0.05))
                 .cornerRadius(12)
+               
             }
             .padding()
         }
@@ -244,6 +245,16 @@ struct MenuBarStylePreview: View {
         }
         .frame(width: 150, height: 36)
         .padding(.top, 8)
+    }
+}
+
+fileprivate extension Color {
+    func toHexString() -> String {
+        let components = NSColor(self).cgColor.components
+        let r = components?[0] ?? 0
+        let g = components?[1] ?? 0
+        let b = components?[2] ?? 0
+        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }
 

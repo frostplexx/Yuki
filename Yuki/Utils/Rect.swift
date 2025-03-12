@@ -51,3 +51,11 @@ extension Rect {
 
     func getDimension(_ orientation: Orientation) -> CGFloat { orientation == .h ? width : height }
 }
+
+enum RectCorner {
+    case topLeft, topRight, bottomLeft, bottomRight, allCorners
+
+    static let all: Set<RectCorner> = [
+        .topLeft, .topRight, .bottomLeft, .bottomRight,
+    ]
+}

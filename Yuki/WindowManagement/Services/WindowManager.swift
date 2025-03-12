@@ -43,6 +43,8 @@ class WindowManager: ObservableObject {
     private let maxCacheSize = 100
     var isActive = true
     
+    private var settings: SettingsManager.Settings { SettingsManager.shared.getSettings() }
+    
     // MARK: - Initialization
     
     private init() {
@@ -61,6 +63,7 @@ class WindowManager: ObservableObject {
             name: NSWorkspace.didWakeNotification,
             object: nil
         )
+       
     }
     
     // MARK: - Monitor Management
@@ -265,6 +268,7 @@ class WindowManager: ObservableObject {
     
     /// Focus the next window in the current workspace
     func focusNextWindow() {
+        // Existing implementation
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
         
         let windows = workspace.getVisibleWindowNodes()
@@ -282,6 +286,7 @@ class WindowManager: ObservableObject {
     
     /// Focus the previous window in the current workspace
     func focusPreviousWindow() {
+        // Existing implementation
         guard let workspace = monitorWithMouse?.activeWorkspace else { return }
         
         let windows = workspace.getVisibleWindowNodes()
@@ -365,4 +370,5 @@ class WindowManager: ObservableObject {
         }
         workspaceCache[id] = workspace
     }
+    
 }
