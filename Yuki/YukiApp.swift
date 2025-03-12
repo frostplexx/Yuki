@@ -18,28 +18,26 @@ struct YukiApp: App {
     @State private var isCreatingWorkspace: Bool = false
     @Environment(\.openWindow) private var openWindow
     @StateObject private var windowManager = WindowManager.shared
-    @StateObject private var settingsManager = SettingsManager.shared
-    
+
     // Theme colors
     @AppStorage("accentColorName") private var accentColorName: String = "blue"
-    
+
     var body: some Scene {
         // Menu Bar Extra
         MenuBarExtra {
             MenuBarView(
                 openSettings: { showSettings() }
             )
-            .environmentObject(windowManager)
         } label: {
             menuBarLabel
         }
     }
-    
+
     var menuBarLabel: some View {
         HStack(spacing: 4) {
             Image(systemName: "square.grid.2x2")
                 .imageScale(.small)
-            
+
             Text(
                 windowManager.monitorWithMouse?.activeWorkspace?.title
                     ?? "Yuki"
@@ -64,8 +62,6 @@ struct YukiApp: App {
                     .background(VisualEffectView().ignoresSafeArea())
                     .accentColor(colorFromName(accentColorName))
                     .preferredColorScheme(.dark)
-                    .environmentObject(windowManager)
-                    .environmentObject(settingsManager)
             ))
         window.title = "Yuki Settings"
 
@@ -81,7 +77,7 @@ struct YukiApp: App {
         windowController.showWindow(self)
         windowControllers.append(windowController)
     }
-    
+
     /// Convert color name to NSColor
     private func colorFromName(_ name: String) -> Color {
         switch name.lowercased() {
@@ -103,18 +99,18 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
         super.init(window: window)
         window?.delegate = self
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     func windowWillClose(_ notification: Notification) {
         // Remove self from the controllers array
         if let index = windowControllers.firstIndex(where: { $0 === self }) {
             windowControllers.remove(at: index)
         }
         ImageCacheManager.shared.clearMemoryCache()
-        
+
         // Manually break potential reference cycles
         window?.contentViewController = nil
     }

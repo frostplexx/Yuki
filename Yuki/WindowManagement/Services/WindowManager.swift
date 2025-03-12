@@ -39,10 +39,28 @@ class WindowManager: ObservableObject {
     private var workspaceCache: [UUID: WorkspaceNode] = [:]
     private var windowNodeCache: [CGWindowID: WindowNode] = [:]
     
+    // Add cache limits
+    private let maxCacheSize = 100
+    var isActive = true
+    
     // MARK: - Initialization
     
     private init() {
         detectMonitors()
+        
+        // Listen for sleep/wake notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSleepWake),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSleepWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
     }
     
     // MARK: - Monitor Management
@@ -160,16 +178,16 @@ class WindowManager: ObservableObject {
     
     /// Find a workspace by its ID
     func findWorkspace(byID id: UUID) -> WorkspaceNode? {
-        // Check cache first
+        // Only perform lookups if active
+        guard isActive else { return nil }
+        
         if let cached = workspaceCache[id] {
             return cached
         }
         
-        // Otherwise search monitors
         for monitor in monitors {
             if let workspace = monitor.workspaces.first(where: { $0.id == id }) {
-                // Cache for future lookups
-                workspaceCache[id] = workspace
+                updateWorkspaceCache(id: id, workspace: workspace)
                 return workspace
             }
         }
@@ -179,28 +197,25 @@ class WindowManager: ObservableObject {
     
     /// Find a window node by its system ID
     func findWindowNode(byID windowID: CGWindowID) -> WindowNode? {
-        // Check cache first
+        // Only perform lookups if active
+        guard isActive else { return nil }
+        
         if let cached = windowNodeCache[windowID] {
             return cached
         }
         
         // Check by ownership
         if let workspaceID = windowOwnership[windowID],
-           let workspace = findWorkspace(byID: workspaceID) {
-            // Search for window in this workspace
-            if let windowNode = workspace.findWindowNode(withID: windowID) {
-                // Cache for future lookups
-                windowNodeCache[windowID] = windowNode
-                return windowNode
-            }
+           let workspace = findWorkspace(byID: workspaceID),
+           let windowNode = workspace.findWindowNode(withID: windowID) {
+            updateWindowNodeCache(windowID: windowID, node: windowNode)
+            return windowNode
         }
         
-        // If not found, search all workspaces
         for monitor in monitors {
             for workspace in monitor.workspaces {
                 if let windowNode = workspace.findWindowNode(withID: windowID) {
-                    // Cache for future lookups
-                    windowNodeCache[windowID] = windowNode
+                    updateWindowNodeCache(windowID: windowID, node: windowNode)
                     return windowNode
                 }
             }
@@ -317,5 +332,37 @@ class WindowManager: ObservableObject {
         
         print("\nWindow Ownership: \(windowOwnership.count) windows")
         print("====================================\n")
+    }
+    
+    // Add sleep/wake handler
+    @objc private func handleSleepWake(notification: Notification) {
+        if notification.name == NSWorkspace.willSleepNotification {
+            isActive = false
+            clearCaches()
+        } else if notification.name == NSWorkspace.didWakeNotification {
+            isActive = true
+            detectMonitors()
+        }
+    }
+    
+    // Add cache management
+    func clearCaches() {
+        workspaceCache.removeAll()
+        windowNodeCache.removeAll()
+    }
+    
+    // Modify cache updates to respect size limits
+    private func updateWindowNodeCache(windowID: CGWindowID, node: WindowNode) {
+        if windowNodeCache.count >= maxCacheSize {
+            windowNodeCache.removeValue(forKey: windowNodeCache.keys.first!)
+        }
+        windowNodeCache[windowID] = node
+    }
+    
+    private func updateWorkspaceCache(id: UUID, workspace: WorkspaceNode) {
+        if workspaceCache.count >= maxCacheSize {
+            workspaceCache.removeValue(forKey: workspaceCache.keys.first!)
+        }
+        workspaceCache[id] = workspace
     }
 }

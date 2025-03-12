@@ -43,7 +43,7 @@ class WindowObserverService {
     private var observationTimer: Timer?
     
     /// Observation interval (in seconds) - reduced for faster response
-    private let observationInterval: TimeInterval = 0.2
+    private let observationInterval: TimeInterval = 0.5
     
     /// Lock screen app bundle identifier (to ignore)
     private let lockScreenAppBundleId = "com.apple.loginwindow"

@@ -14,7 +14,7 @@ class ImageCacheManager {
     static let shared = ImageCacheManager()
     
     /// In-memory cache dictionary
-    private var memoryCache: [URL: NSImage] = [:]
+    private var memoryCache = NSCache<NSURL, NSImage>()
     
     /// Queue for thread-safe operations
     private let queue = DispatchQueue(label: "com.yuki.ImageCacheQueue", attributes: .concurrent)
@@ -44,7 +44,17 @@ class ImageCacheManager {
         return appCacheDir
     }
     
+    private let fileManager = FileManager.default
+    
     private init() {
+        memoryCache.countLimit = 100 // Limit the number of items in memory cache
+        memoryCache.totalCostLimit = 50 * 1024 * 1024 // Limit total size to 50MB
+        
+        // Set up periodic disk cache cleanup
+        Timer.scheduledTimer(withTimeInterval: 86400, repeats: true) { [weak self] _ in
+            self?.cleanupDiskCache()
+        }
+        
         // Ensure the cache directory exists
         if let _ = cacheDirectory {
             print("Image cache directory initialized")
@@ -64,7 +74,7 @@ class ImageCacheManager {
             }
             
             // If image is in memory cache, return it immediately
-            if let cachedImage = self.memoryCache[url] {
+            if let cachedImage = self.memoryCache.object(forKey: url as NSURL) {
                 DispatchQueue.main.async {
                     completion(cachedImage)
                 }
@@ -74,9 +84,7 @@ class ImageCacheManager {
             // Next, check disk cache
             if let diskCachedImage = self.loadImageFromDiskCache(for: url) {
                 // Store in memory cache for future use
-                self.queue.async(flags: .barrier) {
-                    self.memoryCache[url] = diskCachedImage
-                }
+                self.memoryCache.setObject(diskCachedImage, forKey: url as NSURL)
                 
                 DispatchQueue.main.async {
                     completion(diskCachedImage)
@@ -91,9 +99,7 @@ class ImageCacheManager {
                     self.saveImageToDiskCache(image, for: url)
                     
                     // Store in memory cache
-                    self.queue.async(flags: .barrier) {
-                        self.memoryCache[url] = image
-                    }
+                    self.memoryCache.setObject(image, forKey: url as NSURL)
                     
                     // Return image on main thread
                     DispatchQueue.main.async {
@@ -198,7 +204,7 @@ class ImageCacheManager {
     /// Clear the memory cache only (keeps disk cache)
     func clearMemoryCache() {
         queue.async(flags: .barrier) { [weak self] in
-            self?.memoryCache.removeAll()
+            self?.memoryCache.removeAllObjects()
         }
     }
     
@@ -206,7 +212,7 @@ class ImageCacheManager {
     func clearAllCache() {
         // Clear memory cache
         queue.async(flags: .barrier) { [weak self] in
-            self?.memoryCache.removeAll()
+            self?.memoryCache.removeAllObjects()
         }
         
         // Clear disk cache
@@ -231,7 +237,7 @@ class ImageCacheManager {
     func removeImage(for url: URL) {
         // Remove from memory cache
         queue.async(flags: .barrier) { [weak self] in
-            self?.memoryCache.removeValue(forKey: url)
+            self?.memoryCache.removeObject(forKey: url as NSURL)
         }
         
         // Remove from disk cache
@@ -245,6 +251,24 @@ class ImageCacheManager {
             } catch {
                 print("Failed to remove image from disk cache: \(error)")
             }
+        }
+    }
+    
+    private func cleanupDiskCache() {
+        guard let cacheDir = cacheDirectory else { return }
+        
+        let expirationDate = Date().addingTimeInterval(-7 * 86400) // 7 days ago
+        
+        do {
+            let fileURLs = try fileManager.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: [.creationDateKey])
+            for fileURL in fileURLs {
+                guard let creationDate = try fileURL.resourceValues(forKeys: [.creationDateKey]).creationDate else { continue }
+                if creationDate < expirationDate {
+                    try fileManager.removeItem(at: fileURL)
+                }
+            }
+        } catch {
+            print("Failed to clean up disk cache: \(error)")
         }
     }
 }

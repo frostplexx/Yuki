@@ -11,7 +11,7 @@ struct MenuBarView: View {
     var openSettings: () -> Void
     
     // Add state observation for WindowManager
-    @EnvironmentObject var windowManager: WindowManager
+    @ObservedObject var windowManager: WindowManager = WindowManager.shared
     @State private var debugClassification = false
     @State private var isAddingWorkspace = false
     @State private var newWorkspaceName = ""

@@ -22,7 +22,7 @@ class WorkspaceNode: Node, ObservableObject, Equatable {
     }
     
     let id: UUID
-    var title: String?
+    @Published var title: String?
     var children: [any Node] = []
     weak var parent: (any Node)?
     
